@@ -1,0 +1,15 @@
+[package]
+name = "credbridge-escrow"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "credbridge_escrow"
+crate-type = ["cdylib", "lib"]
+
+[features]
+no-entrypoint = []
+
+[dependencies]
+anchor-lang = "0.30.1"
+anchor-spl = "0.30.1"

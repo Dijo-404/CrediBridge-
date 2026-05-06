@@ -1,1 +1,9 @@
-# TODO: Initialize Anchor configuration for the escrow program.
+[programs.localnet]
+credbridge_escrow = "11111111111111111111111111111111" # Replace with deployed program ID
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "anchor test"
