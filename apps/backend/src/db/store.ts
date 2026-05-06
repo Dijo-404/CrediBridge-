@@ -53,6 +53,13 @@ export function getSession(id: string): PaymentSession | undefined {
   return sessions.get(id);
 }
 
+export function listSessions(vendorId?: string): PaymentSession[] {
+  const all = Array.from(sessions.values()).sort((a, b) =>
+    b.created_at.localeCompare(a.created_at)
+  );
+  return vendorId ? all.filter((s) => s.vendor_id === vendorId) : all;
+}
+
 export function updateSession(
   id: string,
   patch: Partial<PaymentSession>

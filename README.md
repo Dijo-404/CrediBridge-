@@ -2,7 +2,7 @@
 
 CrediBridge is an intelligent payment orchestration gateway for Indian software exporters. It captures foreign payments through a compliant Merchant of Record, bridges settlement over Solana, and triggers Authorized Dealer bank off-ramps so exporters receive INR quickly with a valid e-FIRC.
 
-This repository contains the build plan in [.agent/CREDOBRIDGE_PLAN.md](.agent/CREDOBRIDGE_PLAN.md) plus an in-progress MVP scaffold: a Fastify backend with an in-memory store ([apps/backend](apps/backend)), a Next.js frontend ([apps/frontend](apps/frontend)), and an Anchor escrow program ([programs/escrow](programs/escrow)). Several pieces — Postgres schema, BullMQ worker, Dodo SDK wrapper, devnet seed and end-to-end simulation scripts — remain TODO stubs.
+This repository implements the build plan in [.agent/CREDOBRIDGE_PLAN.md](.agent/CREDOBRIDGE_PLAN.md): a Fastify backend with an in-memory store and a documented Postgres schema ([apps/backend](apps/backend)), a Next.js dashboard ([apps/frontend](apps/frontend)), an Anchor Token-2022 escrow program ([programs/escrow](programs/escrow)), and devnet seed and end-to-end simulation scripts ([scripts/](scripts/)). The MVP runs offline (no Dodo or Solana credentials required) and falls forward to real integrations when env vars are populated.
 
 ## Table of contents
 - Problem
@@ -189,8 +189,39 @@ Post-hackathon targets include:
 - Form 15CA/15CB automation
 - Multi-currency support and vendor payout batching
 
+## Running the MVP
+
+```bash
+# Backend (Fastify, in-memory store, no infra required)
+cd apps/backend
+npm install
+npm run dev          # http://localhost:3001
+npm test             # 21 tests across webhook, queue, settlement, e-FIRC
+
+# Frontend (Next.js dashboard)
+cd apps/frontend
+npm install
+npm run dev          # http://localhost:3000
+
+# End-to-end simulation (requires the backend running)
+DODO_WEBHOOK_SECRET=whsec_test tsx scripts/simulate-payment.ts
+```
+
+The simulation script creates a vendor, opens a payment session, sends a signed
+synthetic Dodo webhook, polls until the session reaches `efirc_generated`, and
+saves the e-FIRC PDF locally.
+
+### Devnet escrow program
+
+```bash
+cd programs/escrow
+anchor build
+tsx ../../scripts/seed-devnet.ts
+anchor test
+```
+
 ## Status
-Planning stage. See [.agent/CREDOBRIDGE_PLAN.md](.agent/CREDOBRIDGE_PLAN.md) for the full build plan, demo script, and risk analysis.
+Implemented. See [.agent/CREDOBRIDGE_PLAN.md](.agent/CREDOBRIDGE_PLAN.md) for the full build plan, demo script, and risk analysis.
 
 ## References
 - Dodo Payments docs: https://docs.dodopayments.com/introduction
