@@ -1,0 +1,107 @@
+# Manual / tag-driven deploy.
+#
+# Backend ships to Railway, frontend to Vercel. Both jobs are gated on the
+# secret being present so the workflow no-ops on forks.
+name: deploy
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'What to deploy'
+        type: choice
+        options: [all, backend, frontend]
+        default: all
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    name: deploy backend (Railway)
+    if: ${{ github.event_name == 'push' || github.event.inputs.target == 'all' || github.event.inputs.target == 'backend' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip if RAILWAY_TOKEN missing
+        if: ${{ env.RAILWAY_TOKEN == '' }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: echo "::warning::RAILWAY_TOKEN secret not set; skipping deploy."
+
+      - name: Setup Node 20
+        if: ${{ env.RAILWAY_TOKEN != '' }}
+        uses: actions/setup-node@v4
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        with:
+          node-version: '20'
+
+      - name: Install Railway CLI
+        if: ${{ env.RAILWAY_TOKEN != '' }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: npm install -g @railway/cli@latest
+
+      - name: Deploy backend
+        if: ${{ env.RAILWAY_TOKEN != '' }}
+        working-directory: apps/backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service credbridge-backend --detach
+
+  frontend:
+    name: deploy frontend (Vercel)
+    if: ${{ github.event_name == 'push' || github.event.inputs.target == 'all' || github.event.inputs.target == 'frontend' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip if VERCEL_TOKEN missing
+        if: ${{ env.VERCEL_TOKEN == '' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: echo "::warning::VERCEL_TOKEN secret not set; skipping deploy."
+
+      - name: Setup Node 20
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        uses: actions/setup-node@v4
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        with:
+          node-version: '20'
+
+      - name: Install Vercel CLI
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel env
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        working-directory: apps/frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+
+      - name: Build
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        working-directory: apps/frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --token=$VERCEL_TOKEN
+
+      - name: Deploy
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        working-directory: apps/frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN

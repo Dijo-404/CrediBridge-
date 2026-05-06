@@ -1,0 +1,67 @@
+name: anchor
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'programs/**'
+      - '.github/workflows/anchor.yml'
+  pull_request:
+    paths:
+      - 'programs/**'
+      - '.github/workflows/anchor.yml'
+
+concurrency:
+  group: anchor-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOLANA_VERSION: '1.18.22'
+  ANCHOR_VERSION: '0.30.1'
+  RUST_TOOLCHAIN: '1.79.0'
+
+jobs:
+  build:
+    name: build escrow program
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+
+      - name: Cache Cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            programs/escrow/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('programs/**/Cargo.toml') }}
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.solana.com/v${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Anchor (avm)
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          avm install ${{ env.ANCHOR_VERSION }}
+          avm use ${{ env.ANCHOR_VERSION }}
+
+      - name: Anchor build
+        working-directory: programs/escrow
+        run: anchor build
+
+      - name: Cargo fmt check
+        working-directory: programs/escrow
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        working-directory: programs/escrow
+        run: cargo clippy --all-targets -- -D warnings

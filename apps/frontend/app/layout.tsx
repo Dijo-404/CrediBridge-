@@ -1,17 +1,16 @@
 import type { ReactNode } from 'react';
+import './globals.css';
 
 export const metadata = {
-	title: 'CrediBridge',
+	title: 'CrediBridge — Stablecoin speed. Banking compliance.',
 	description:
-		'Stablecoin-speed cross-border payments with banking-grade compliance for Indian software exporters.',
+		'Cross-border payments for Indian software exporters. Capture in USD via Dodo, settle on Solana, off-ramp to INR with a valid e-FIRC — in ~90 seconds.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
 	return (
 		<html lang="en">
-			<body style={{ margin: 0, fontFamily: 'system-ui, sans-serif' }}>
-				{children}
-			</body>
+			<body className="min-h-screen antialiased">{children}</body>
 		</html>
 	);
 }

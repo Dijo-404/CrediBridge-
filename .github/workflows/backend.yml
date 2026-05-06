@@ -1,0 +1,101 @@
+name: backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/backend/**'
+      - '.github/workflows/backend.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    paths:
+      - 'apps/backend/**'
+      - '.github/workflows/backend.yml'
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: typecheck + unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install workspace dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Type-check backend
+        working-directory: apps/backend
+        run: npm run typecheck
+
+      - name: Run unit tests
+        working-directory: apps/backend
+        env:
+          DODO_WEBHOOK_SECRET: whsec_ci_test
+        run: npm test
+
+  e2e:
+    name: end-to-end simulation
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install workspace dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Start backend
+        working-directory: apps/backend
+        env:
+          PORT: 3001
+          DODO_WEBHOOK_SECRET: whsec_ci_test
+        run: |
+          nohup npx tsx src/index.ts > backend.log 2>&1 &
+          echo $! > backend.pid
+
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/health > /dev/null; then
+              echo "backend ready"; exit 0
+            fi
+            sleep 1
+          done
+          echo "backend never came up"; cat apps/backend/backend.log; exit 1
+
+      - name: Run simulate-payment.ts
+        env:
+          BACKEND_URL: http://localhost:3001
+          DODO_WEBHOOK_SECRET: whsec_ci_test
+        run: npx tsx scripts/simulate-payment.ts
+
+      - name: Stop backend
+        if: always()
+        run: |
+          if [ -f apps/backend/backend.pid ]; then
+            kill "$(cat apps/backend/backend.pid)" || true
+          fi
+
+      - name: Upload backend log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-log
+          path: apps/backend/backend.log

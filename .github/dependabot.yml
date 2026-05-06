@@ -1,0 +1,39 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 5
+    labels: [dependencies, root]
+
+  - package-ecosystem: 'npm'
+    directory: '/apps/backend'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 5
+    labels: [dependencies, backend]
+
+  - package-ecosystem: 'npm'
+    directory: '/apps/frontend'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 5
+    labels: [dependencies, frontend]
+
+  - package-ecosystem: 'cargo'
+    directory: '/programs/escrow'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 3
+    labels: [dependencies, anchor]
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'monthly'
+    labels: [dependencies, ci]

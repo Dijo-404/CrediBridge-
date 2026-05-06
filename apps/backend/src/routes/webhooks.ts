@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest } from 'fastify';
+import { FastifyInstance, FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { parseDodoWebhook, verifyDodoWebhook } from '../services/dodo';
 import { paymentQueue } from '../queues/payment';
 import { handleSolanaFinality } from '../services/settlement';
@@ -21,9 +21,10 @@ paymentQueue.process(async (job) => {
 	await handleSolanaFinality(sessionId);
 });
 
-export async function registerWebhookRoutes(app: FastifyInstance) {
-	// Capture the raw body so HMAC verification operates on the exact bytes Dodo signed.
-	app.addContentTypeParser(
+const webhookPlugin: FastifyPluginAsync = async (instance) => {
+	// Encapsulated parser: only this plugin sees JSON as { __raw, parsed }.
+	// The default JSON parser remains active everywhere else.
+	instance.addContentTypeParser(
 		'application/json',
 		{ parseAs: 'string' },
 		(_req, body, done) => {
@@ -36,7 +37,7 @@ export async function registerWebhookRoutes(app: FastifyInstance) {
 		}
 	);
 
-	app.post('/webhooks/dodo', async (request: FastifyRequest, reply) => {
+	instance.post('/webhooks/dodo', async (request: FastifyRequest, reply) => {
 		const secret = process.env.DODO_WEBHOOK_SECRET;
 		const wrapper = request.body as { __raw?: string; parsed?: unknown } | undefined;
 		const rawBody = wrapper?.__raw ?? '';
@@ -84,4 +85,8 @@ export async function registerWebhookRoutes(app: FastifyInstance) {
 
 		reply.send({ ok: true });
 	});
+};
+
+export async function registerWebhookRoutes(app: FastifyInstance) {
+	await app.register(webhookPlugin);
 }
