@@ -4,5 +4,13 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "echo \"TODO: add backend dev script\""
+  },
+  "dependencies": {
+    "fastify": "^4.27.0",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "typescript": "^5.5.4"
   }
 }

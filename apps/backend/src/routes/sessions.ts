@@ -1,7 +1,61 @@
 import { FastifyInstance } from 'fastify';
+import { createSession, getSession, getVendor } from '../db/store';
+import { settleSessionById } from '../services/settlement';
+
+interface CreateSessionBody {
+	vendorId?: string;
+	amountUsd?: number;
+	buyerCountry?: string;
+	invoiceNumber?: string;
+}
 
 export async function registerSessionRoutes(app: FastifyInstance) {
-	app.post('/api/sessions/create', async (_request, reply) => {
-		reply.code(501).send({ error: 'Not implemented' });
+	app.post('/api/sessions/create', async (request, reply) => {
+		const body = request.body as CreateSessionBody;
+
+		if (!body?.vendorId || !body.amountUsd) {
+			reply.code(400).send({ error: 'vendorId and amountUsd are required' });
+			return;
+		}
+
+		const vendor = getVendor(body.vendorId);
+		if (!vendor) {
+			reply.code(404).send({ error: 'Vendor not found' });
+			return;
+		}
+
+		const session = createSession({
+			vendor,
+			amount_usd: body.amountUsd,
+			buyer_country: body.buyerCountry,
+			invoice_number: body.invoiceNumber,
+		});
+
+		reply.code(201).send({ session });
+	});
+
+	app.get('/api/sessions/:id', async (request, reply) => {
+		const { id } = request.params as { id: string };
+		const session = getSession(id);
+
+		if (!session) {
+			reply.code(404).send({ error: 'Session not found' });
+			return;
+		}
+
+		reply.send({ session });
+	});
+
+	app.post('/api/sessions/:id/settle', async (request, reply) => {
+		const { id } = request.params as { id: string };
+
+		try {
+			const result = await settleSessionById(id);
+			reply.send(result);
+		} catch (error) {
+			const message = (error as Error).message;
+			const status = message.startsWith('Session not found') ? 404 : 500;
+			reply.code(status).send({ error: message });
+		}
 	});
 }
