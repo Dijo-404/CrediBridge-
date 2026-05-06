@@ -1,0 +1,8 @@
+{
+  "name": "@credbridge/backend",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "echo \"TODO: add backend dev script\""
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "credbridge",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "programs/*"
+  ],
+  "scripts": {
+    "dev": "echo \"TODO: add dev script\""
+  }
+}
