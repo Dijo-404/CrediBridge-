@@ -22,6 +22,8 @@ pub mod credbridge_escrow {
 	}
 
 	pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+		require!(ctx.accounts.vault.is_active, EscrowError::VaultInactive);
+
 		let cpi_accounts = TransferChecked {
 			from: ctx.accounts.payer_token.to_account_info(),
 			mint: ctx.accounts.mint.to_account_info(),
@@ -39,6 +41,7 @@ pub mod credbridge_escrow {
 	}
 
 	pub fn release_to_offramp(ctx: Context<Release>, amount: u64) -> Result<()> {
+		require!(ctx.accounts.vault.is_active, EscrowError::VaultInactive);
 		require!(ctx.accounts.vault.amount >= amount, EscrowError::InsufficientFunds);
 
 		let cpi_accounts = TransferChecked {
@@ -108,4 +111,6 @@ impl EscrowVault {
 pub enum EscrowError {
 	#[msg("Insufficient funds in vault")]
 	InsufficientFunds,
+	#[msg("Vault is inactive")]
+	VaultInactive,
 }

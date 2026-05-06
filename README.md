@@ -2,7 +2,7 @@
 
 CrediBridge is an intelligent payment orchestration gateway for Indian software exporters. It captures foreign payments through a compliant Merchant of Record, bridges settlement over Solana, and triggers Authorized Dealer bank off-ramps so exporters receive INR quickly with a valid e-FIRC.
 
-This repository currently contains the build plan in [.agent/CREDOBRIDGE_PLAN.md](.agent/CREDOBRIDGE_PLAN.md). Implementation is planned but not yet present in the repo.
+This repository contains the build plan in [.agent/CREDOBRIDGE_PLAN.md](.agent/CREDOBRIDGE_PLAN.md) plus an in-progress MVP scaffold: a Fastify backend with an in-memory store ([apps/backend](apps/backend)), a Next.js frontend ([apps/frontend](apps/frontend)), and an Anchor escrow program ([programs/escrow](programs/escrow)). Several pieces — Postgres schema, BullMQ worker, Dodo SDK wrapper, devnet seed and end-to-end simulation scripts — remain TODO stubs.
 
 ## Table of contents
 - Problem
