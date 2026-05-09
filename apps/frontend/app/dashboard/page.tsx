@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Header } from '../../components/Header';
+import { Footer } from '../../components/Footer';
 import { CopyButton } from '../../components/CopyButton';
 import {
 	StatusChip,
@@ -97,6 +98,13 @@ export default function DashboardPage() {
 		};
 	}, [amountUsd]);
 
+	const counts = useMemo(() => {
+		const totalUsd = sessions.reduce((acc, s) => acc + s.amount_usd, 0);
+		const settled = sessions.filter((s) => s.status === 'efirc_generated').length;
+		const inFlight = sessions.length - settled;
+		return { totalUsd, settled, inFlight };
+	}, [sessions]);
+
 	async function createSession() {
 		if (!selectedVendorId) {
 			setError('Select a vendor first.');
@@ -137,161 +145,174 @@ export default function DashboardPage() {
 		await refreshSessions();
 	}
 
-	const counts = useMemo(() => {
-		const totalUsd = sessions.reduce((acc, s) => acc + s.amount_usd, 0);
-		const settled = sessions.filter((s) => s.status === 'efirc_generated').length;
-		const inFlight = sessions.length - settled;
-		return { totalUsd, settled, inFlight };
-	}, [sessions]);
-
 	return (
 		<>
-			<Header />
-			<main className="mx-auto max-w-6xl px-6 py-8">
-				<div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-					<div>
-						<h1 className="text-2xl font-semibold tracking-tight">Vendor dashboard</h1>
-						<p className="text-sm text-ink-500">
-							Capture cross-border payments. Watch them settle through Solana to INR.
-						</p>
-					</div>
-					<div className="flex items-center gap-2">
-						{vendors.length > 0 ? (
-							<select
-								value={selectedVendorId}
-								onChange={(e) => {
-									setSelectedVendorId(e.target.value);
-									setActiveSessionId(null);
-								}}
-								className="input min-w-[260px]"
-							>
-								{vendors.map((v) => (
-									<option key={v.id} value={v.id}>
-										{v.name} · {v.purpose_code}
-									</option>
-								))}
-							</select>
-						) : (
-							<Link href="/dashboard/onboard" className="btn-primary">
-								Onboard your first vendor
-							</Link>
-						)}
-					</div>
-				</div>
+			<Header pageLabel="Dashboard" />
 
-				{selectedVendor && (
-					<section className="mt-6 grid gap-4 md:grid-cols-4">
-						<KpiCard label="Vendor" value={selectedVendor.name} sub={selectedVendor.gst_number} />
-						<KpiCard
-							label="Volume captured"
-							value={`$${counts.totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
-							sub={`${sessions.length} sessions`}
-						/>
-						<KpiCard label="In flight" value={String(counts.inFlight)} sub="Pre e-FIRC" />
-						<KpiCard
-							label="Settled"
-							value={String(counts.settled)}
-							sub="With e-FIRC issued"
-							tone="accent"
-						/>
-					</section>
-				)}
-
-				<section className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-					<div className="card p-5">
-						<div className="flex items-center justify-between">
-							<h2 className="text-sm font-semibold text-ink-900">Create payment session</h2>
-							<span className="chip bg-ink-100 text-ink-600 ring-ink-200">
-								Purpose code <b className="ml-1 font-semibold">{selectedVendor?.purpose_code ?? '—'}</b>
-							</span>
+			{/* TILE 1 — overview light */}
+			<section className="bg-canvas border-b border-divider">
+				<div className="mx-auto max-w-[1024px] px-6 py-[64px]">
+					<div className="flex flex-col items-start justify-between gap-[24px] md:flex-row md:items-end">
+						<div>
+							<h1 className="text-display-md tight-hero">Vendor dashboard.</h1>
+							<p className="mt-[8px] text-lead-airy text-ink-80">
+								Capture cross-border payments. Watch them settle through Solana to INR.
+							</p>
 						</div>
-						<div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
-							<div>
-								<label className="label">Invoice amount (USD)</label>
-								<input
-									type="number"
-									min="1"
-									value={amountUsd}
-									onChange={(e) => setAmountUsd(e.target.value)}
-									className="input mt-1"
-								/>
+						<div className="flex items-center gap-[12px]">
+							{vendors.length > 0 ? (
+								<>
+									<label className="text-caption-strong text-ink-48">Vendor</label>
+									<select
+										value={selectedVendorId}
+										onChange={(e) => {
+											setSelectedVendorId(e.target.value);
+											setActiveSessionId(null);
+										}}
+										className="pill-input min-w-[260px]"
+									>
+										{vendors.map((v) => (
+											<option key={v.id} value={v.id}>
+												{v.name} · {v.purpose_code}
+											</option>
+										))}
+									</select>
+								</>
+							) : (
+								<Link href="/dashboard/onboard" className="btn-pill">
+									Onboard your first vendor
+								</Link>
+							)}
+						</div>
+					</div>
+
+					{selectedVendor && (
+						<div className="mt-[40px] grid grid-cols-2 gap-[24px] md:grid-cols-4">
+							<Kpi label="Vendor" value={selectedVendor.name} sub={selectedVendor.gst_number} />
+							<Kpi
+								label="Volume captured"
+								value={'$' + counts.totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+								sub={`${sessions.length} sessions`}
+							/>
+							<Kpi label="In flight" value={String(counts.inFlight)} sub="Pre e-FIRC" />
+							<Kpi
+								label="Settled"
+								value={String(counts.settled)}
+								sub="With e-FIRC issued"
+								highlight
+							/>
+						</div>
+					)}
+				</div>
+			</section>
+
+			{/* TILE 2 — create + compliance metadata, parchment */}
+			<section className="bg-parchment border-b border-divider">
+				<div className="mx-auto max-w-[1024px] px-6 py-[64px]">
+					<div className="grid grid-cols-1 gap-[24px] md:grid-cols-[1.4fr_1fr]">
+						<div className="utility-card">
+							<div className="flex items-center justify-between">
+								<h2 className="text-tagline">Create payment session</h2>
+								<span className="text-caption text-ink-48">
+									Purpose code{' '}
+									<span className="font-semibold text-ink">
+										{selectedVendor?.purpose_code ?? '—'}
+									</span>
+								</span>
 							</div>
-							<div className="flex items-end">
+							<div className="mt-[20px] grid grid-cols-1 gap-[16px] sm:grid-cols-[1fr_auto] sm:items-end">
+								<div>
+									<label className="block text-caption-strong text-ink-48">
+										Invoice amount (USD)
+									</label>
+									<input
+										type="number"
+										min="1"
+										value={amountUsd}
+										onChange={(e) => setAmountUsd(e.target.value)}
+										className="pill-input mt-[6px]"
+									/>
+								</div>
 								<button
 									type="button"
 									onClick={createSession}
 									disabled={!selectedVendorId || creating}
-									className="btn-primary w-full sm:w-auto"
+									className="btn-pill"
 								>
 									{creating ? 'Creating…' : 'Create session'}
 								</button>
 							</div>
-						</div>
-						{error && (
-							<p role="alert" className="mt-3 text-sm text-red-600">
-								{error}
+							{error && (
+								<p className="mt-[12px] text-caption text-red-600">{error}</p>
+							)}
+							<div className="mt-[24px] grid grid-cols-3 gap-[16px] border-t border-hairline pt-[20px]">
+								<MiniMetric label="SWIFT cost" value={`$${fx.swift.toFixed(2)}`} muted />
+								<MiniMetric label="CrediBridge cost" value={`$${fx.cb.toFixed(2)}`} accent />
+								<MiniMetric
+									label="You save"
+									value={`$${fx.savings.toFixed(2)}`}
+									sub={`≈ ₹${(fx.savings * FX_RATE).toFixed(0)}`}
+									accent
+								/>
+							</div>
+							<p className="mt-[12px] text-fine-print text-ink-48">
+								Estimated INR credit at off-ramp:{' '}
+								<span className="font-semibold text-ink">
+									₹{fx.inr.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+								</span>{' '}
+								@ {FX_RATE} INR/USD
 							</p>
-						)}
-						<div className="mt-5 grid gap-3 rounded-lg bg-ink-50 p-4 text-xs sm:grid-cols-3">
-							<MiniMetric label="SWIFT cost" value={`$${fx.swift.toFixed(2)}`} tone="muted" />
-							<MiniMetric label="CrediBridge cost" value={`$${fx.cb.toFixed(2)}`} tone="brand" />
-							<MiniMetric
-								label="You save"
-								value={`$${fx.savings.toFixed(2)}`}
-								sub={`≈ ₹${(fx.savings * FX_RATE).toFixed(0)}`}
-								tone="accent"
-							/>
 						</div>
-						<p className="mt-3 text-[11px] text-ink-500">
-							Estimated INR credit at off-ramp:{' '}
-							<span className="font-semibold text-ink-700">
-								₹{fx.inr.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-							</span>{' '}
-							@ {FX_RATE} INR/USD
-						</p>
-					</div>
 
-					<div className="card p-5">
-						<h2 className="text-sm font-semibold text-ink-900">Compliance metadata</h2>
-						<p className="mt-1 text-xs text-ink-500">
-							Injected into Dodo checkout and the on-chain escrow deposit.
-						</p>
-						<dl className="mt-4 space-y-2 text-sm">
-							<MetaRow label="GSTIN" value={selectedVendor?.gst_number ?? '—'} />
-							<MetaRow label="PAN" value={selectedVendor?.pan_number ?? '—'} />
-							<MetaRow label="AD bank account" value={selectedVendor?.ad_bank_account ?? '—'} />
-							<MetaRow
-								label="Purpose code"
-								value={selectedVendor?.purpose_code ?? '—'}
-								description="RBI export classification"
-							/>
-							<MetaRow label="Solana wallet" value={selectedVendor?.solana_wallet ?? '—'} mono />
-						</dl>
+						<div className="utility-card">
+							<h2 className="text-tagline">Compliance metadata</h2>
+							<p className="mt-[8px] text-caption text-ink-48">
+								Injected into Dodo checkout and the on-chain escrow deposit.
+							</p>
+							<dl className="mt-[20px] space-y-[14px]">
+								<MetaRow label="GSTIN" value={selectedVendor?.gst_number ?? '—'} />
+								<MetaRow label="PAN" value={selectedVendor?.pan_number ?? '—'} />
+								<MetaRow label="AD bank account" value={selectedVendor?.ad_bank_account ?? '—'} />
+								<MetaRow
+									label="Purpose code"
+									value={selectedVendor?.purpose_code ?? '—'}
+									description="RBI export classification"
+								/>
+								<MetaRow
+									label="Solana wallet"
+									value={selectedVendor?.solana_wallet ?? '—'}
+									mono
+								/>
+							</dl>
+						</div>
 					</div>
-				</section>
+				</div>
+			</section>
 
-				<section className="mt-8">
+			{/* TILE 3 — transactions, light */}
+			<section className="bg-canvas border-b border-divider">
+				<div className="mx-auto max-w-[1024px] px-6 py-[64px]">
 					<div className="flex items-end justify-between">
-						<h2 className="text-sm font-semibold text-ink-900">Transactions</h2>
-						<span className="text-xs text-ink-500">Auto-refreshing every 1.5s</span>
+						<h2 className="text-display-md tight-hero">Transactions.</h2>
+						<span className="text-caption text-ink-48">Auto-refreshing every 1.5s</span>
 					</div>
 
 					{sessions.length === 0 ? (
 						<EmptyState />
 					) : (
-						<div className="mt-3 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-							<div className="card overflow-hidden">
-								<table className="w-full text-sm">
-									<thead className="border-b border-ink-200 bg-ink-50 text-left text-xs uppercase tracking-wide text-ink-500">
-										<tr>
-											<th className="px-4 py-3 font-medium">Invoice</th>
-											<th className="px-4 py-3 font-medium">Amount</th>
-											<th className="px-4 py-3 font-medium">Status</th>
-											<th className="px-4 py-3 font-medium">e-FIRC</th>
-											<th className="px-4 py-3 font-medium"></th>
+						<div className="mt-[32px] grid grid-cols-1 gap-[24px] md:grid-cols-[1.4fr_1fr]">
+							<div className="utility-card overflow-hidden p-0">
+								<table className="w-full text-body">
+									<thead>
+										<tr className="border-b border-hairline text-caption-strong text-ink-48">
+											<th className="px-[20px] py-[14px] text-left">Invoice</th>
+											<th className="px-[20px] py-[14px] text-left">Amount</th>
+											<th className="px-[20px] py-[14px] text-left">Status</th>
+											<th className="px-[20px] py-[14px] text-left">e-FIRC</th>
+											<th className="px-[20px] py-[14px]"></th>
 										</tr>
 									</thead>
-									<tbody className="divide-y divide-ink-100">
+									<tbody className="divide-y divide-divider">
 										{sessions.map((s) => {
 											const isActive = activeSession?.id === s.id;
 											const settled =
@@ -299,35 +320,35 @@ export default function DashboardPage() {
 											return (
 												<tr
 													key={s.id}
+													onClick={() => setActiveSessionId(s.id)}
 													className={
 														'cursor-pointer transition ' +
-														(isActive ? 'bg-brand-50/40' : 'hover:bg-ink-50')
+														(isActive ? 'bg-parchment' : 'hover:bg-pearl')
 													}
-													onClick={() => setActiveSessionId(s.id)}
 												>
-													<td className="px-4 py-3 font-medium text-ink-900">
+													<td className="px-[20px] py-[14px] text-body-strong">
 														{s.regulatory_metadata.invoice_number}
 													</td>
-													<td className="px-4 py-3 text-ink-700">
+													<td className="px-[20px] py-[14px] text-body">
 														${s.amount_usd.toLocaleString()}
 													</td>
-													<td className="px-4 py-3">
+													<td className="px-[20px] py-[14px]">
 														<StatusChip status={s.status} />
 													</td>
-													<td className="px-4 py-3">
+													<td className="px-[20px] py-[14px]">
 														{settled ? (
 															<a
 																href={`/api/sessions/${s.id}/efirc`}
 																onClick={(e) => e.stopPropagation()}
-																className="text-brand-700 hover:underline"
+																className="link-action text-caption"
 															>
 																Download PDF
 															</a>
 														) : (
-															<span className="text-ink-400">—</span>
+															<span className="text-ink-48 text-caption">—</span>
 														)}
 													</td>
-													<td className="px-4 py-3 text-right">
+													<td className="px-[20px] py-[14px] text-right">
 														{s.status !== 'efirc_generated' && (
 															<button
 																type="button"
@@ -335,7 +356,7 @@ export default function DashboardPage() {
 																	e.stopPropagation();
 																	settle(s.id);
 																}}
-																className="btn-secondary"
+																className="btn-pearl"
 															>
 																Force settle
 															</button>
@@ -351,8 +372,10 @@ export default function DashboardPage() {
 							{activeSession && <SessionDetail session={activeSession} />}
 						</div>
 					)}
-				</section>
-			</main>
+				</div>
+			</section>
+
+			<Footer />
 		</>
 	);
 }
@@ -360,27 +383,24 @@ export default function DashboardPage() {
 function SessionDetail({ session }: { session: PaymentSession }) {
 	const inrAmount = (session.amount_usd * FX_RATE).toFixed(2);
 	return (
-		<div className="card p-5">
+		<div className="utility-card">
 			<div className="flex items-center justify-between">
-				<h3 className="text-sm font-semibold text-ink-900">Session detail</h3>
+				<h3 className="text-tagline">Session detail</h3>
 				<StatusChip status={session.status} />
 			</div>
-			<p className="mt-1 text-xs text-ink-500">
+			<p className="mt-[4px] text-fine-print text-ink-48">
 				Created {new Date(session.created_at).toLocaleString()}
 			</p>
 
-			<div className="mt-4 space-y-2.5 rounded-lg bg-ink-50 p-3 text-[11px]">
+			<div className="mt-[24px]">
 				<StatusPipeline status={session.status} />
 			</div>
 
-			<dl className="mt-5 space-y-3 text-sm">
+			<dl className="mt-[24px] space-y-[14px] border-t border-hairline pt-[20px]">
 				<MetaRow label="Invoice" value={session.regulatory_metadata.invoice_number} />
 				<MetaRow label="Amount (USD)" value={`$${session.amount_usd.toFixed(2)}`} />
 				<MetaRow label="Estimated INR credit" value={`₹${inrAmount}`} />
-				<MetaRow
-					label="Purpose code"
-					value={session.regulatory_metadata.purpose_code}
-				/>
+				<MetaRow label="Purpose code" value={session.regulatory_metadata.purpose_code} />
 				<MetaRow label="GSTIN on record" value={session.regulatory_metadata.gst_number} />
 				{session.dodo_session_id && (
 					<MetaRow label="Dodo payment id" value={session.dodo_session_id} mono />
@@ -398,7 +418,7 @@ function SessionDetail({ session }: { session: PaymentSession }) {
 			{(session.status === 'efirc_generated' || session.status === 'offramped') && (
 				<a
 					href={`/api/sessions/${session.id}/efirc`}
-					className="btn-primary mt-5 w-full"
+					className="btn-pill mt-[24px] w-full"
 				>
 					Download e-FIRC PDF
 				</a>
@@ -407,29 +427,29 @@ function SessionDetail({ session }: { session: PaymentSession }) {
 	);
 }
 
-function KpiCard({
+function Kpi({
 	label,
 	value,
 	sub,
-	tone,
+	highlight,
 }: {
 	label: string;
 	value: string;
 	sub?: string;
-	tone?: 'accent';
+	highlight?: boolean;
 }) {
 	return (
-		<div className="card p-4">
-			<div className="text-xs uppercase tracking-wide text-ink-500">{label}</div>
+		<div>
+			<div className="text-caption-strong text-ink-48">{label}</div>
 			<div
 				className={
-					'mt-1 truncate text-xl font-semibold tracking-tight ' +
-					(tone === 'accent' ? 'text-accent-600' : 'text-ink-900')
+					'mt-[4px] truncate text-display-md tight-hero ' +
+					(highlight ? 'text-action' : 'text-ink')
 				}
 			>
 				{value}
 			</div>
-			{sub && <div className="mt-0.5 truncate text-xs text-ink-500">{sub}</div>}
+			{sub && <div className="mt-[2px] truncate text-caption text-ink-48">{sub}</div>}
 		</div>
 	);
 }
@@ -438,26 +458,27 @@ function MiniMetric({
 	label,
 	value,
 	sub,
-	tone,
+	accent,
+	muted,
 }: {
 	label: string;
 	value: string;
 	sub?: string;
-	tone: 'accent' | 'brand' | 'muted';
+	accent?: boolean;
+	muted?: boolean;
 }) {
-	const valueClass =
-		tone === 'accent'
-			? 'text-accent-600'
-			: tone === 'brand'
-				? 'text-brand-700'
-				: 'text-ink-700';
 	return (
 		<div>
-			<div className="text-[11px] uppercase tracking-wide text-ink-500">{label}</div>
-			<div className={'mt-0.5 text-base font-semibold tracking-tight ' + valueClass}>
+			<div className="text-fine-print text-ink-48">{label}</div>
+			<div
+				className={
+					'mt-[2px] text-body-strong ' +
+					(accent ? 'text-action' : muted ? 'text-ink-48' : 'text-ink')
+				}
+			>
 				{value}
 			</div>
-			{sub && <div className="text-[11px] text-ink-500">{sub}</div>}
+			{sub && <div className="text-fine-print text-ink-48">{sub}</div>}
 		</div>
 	);
 }
@@ -480,25 +501,25 @@ function MetaRow({
 	return (
 		<div className="flex items-start justify-between gap-3">
 			<div className="min-w-0">
-				<div className="label">{label}</div>
+				<div className="text-caption-strong text-ink-48">{label}</div>
 				{link ? (
 					<a
-						className={
-							'truncate hover:underline ' + (mono ? 'font-mono text-xs' : 'text-sm')
-						}
 						href={link}
 						target="_blank"
 						rel="noreferrer"
+						className={
+							'truncate link-action ' + (mono ? 'font-mono text-caption' : 'text-body')
+						}
 					>
 						{truncated} ↗
 					</a>
 				) : (
-					<div className={'truncate ' + (mono ? 'font-mono text-xs' : 'text-sm')}>
+					<div className={'truncate ' + (mono ? 'font-mono text-caption' : 'text-body')}>
 						{truncated}
 					</div>
 				)}
 				{description && (
-					<div className="mt-0.5 text-[11px] text-ink-500">{description}</div>
+					<div className="mt-[2px] text-fine-print text-ink-48">{description}</div>
 				)}
 			</div>
 			{value !== '—' && <CopyButton value={value} />}
@@ -508,18 +529,25 @@ function MetaRow({
 
 function EmptyState() {
 	return (
-		<div className="mt-3 card flex flex-col items-center gap-3 p-10 text-center">
-			<div className="grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-brand-600 ring-1 ring-brand-100">
-				<svg viewBox="0 0 20 20" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+		<div className="mt-[32px] utility-card flex flex-col items-center gap-[12px] py-[64px] text-center">
+			<div className="grid h-[44px] w-[44px] place-items-center rounded-full border border-hairline">
+				<svg
+					viewBox="0 0 20 20"
+					className="h-[20px] w-[20px] text-ink-48"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="1.5"
+				>
 					<rect x="3" y="4" width="14" height="12" rx="2" />
 					<path d="M3 9h14" />
 				</svg>
 			</div>
-			<h3 className="text-sm font-semibold text-ink-900">No transactions yet</h3>
-			<p className="max-w-sm text-xs text-ink-500">
+			<h3 className="text-tagline">No transactions yet</h3>
+			<p className="max-w-[420px] text-caption text-ink-48">
 				Create a payment session above. The status will move from{' '}
-				<span className="kbd">pending</span> all the way to{' '}
-				<span className="kbd">efirc_generated</span> as the webhook fires and Solana confirms.
+				<span className="font-mono">pending</span> all the way to{' '}
+				<span className="font-mono">efirc_generated</span> as the webhook fires and Solana
+				confirms.
 			</p>
 		</div>
 	);

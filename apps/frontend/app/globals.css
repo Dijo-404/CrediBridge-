@@ -3,44 +3,117 @@
 @tailwind utilities;
 
 @layer base {
-	html,
-	body {
-		@apply bg-ink-50 text-ink-900;
+	html {
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		text-rendering: optimizeLegibility;
 	}
 	body {
-		font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+		@apply bg-canvas text-ink font-text text-body;
+	}
+	::selection {
+		background-color: #0066cc;
+		color: #ffffff;
 	}
 }
 
 @layer components {
-	.btn {
-		@apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
-			transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500
-			focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50 disabled:opacity-50 disabled:cursor-not-allowed;
+	/* Primary blue pill — the signature Apple action. */
+	.btn-pill {
+		@apply inline-flex items-center justify-center bg-action text-white text-body
+			rounded-full px-[22px] py-[11px] transition-transform duration-150
+			active:scale-95 focus-visible:outline-none focus-visible:ring-2
+			focus-visible:ring-action-focus focus-visible:ring-offset-2 disabled:opacity-50
+			disabled:cursor-not-allowed;
 	}
-	.btn-primary {
-		@apply btn bg-ink-900 text-white hover:bg-ink-800;
+	/* Ghost pill — used as second CTA next to a primary pill. */
+	.btn-pill-ghost {
+		@apply inline-flex items-center justify-center bg-transparent text-action text-body
+			rounded-full px-[22px] py-[11px] border border-action transition-transform duration-150
+			active:scale-95 focus-visible:outline-none focus-visible:ring-2
+			focus-visible:ring-action-focus focus-visible:ring-offset-2;
 	}
-	.btn-secondary {
-		@apply btn bg-white text-ink-900 ring-1 ring-ink-200 hover:bg-ink-100;
+	.btn-pill-ghost-on-dark {
+		@apply inline-flex items-center justify-center bg-transparent text-action-sky text-body
+			rounded-full px-[22px] py-[11px] border border-action-sky transition-transform duration-150
+			active:scale-95;
 	}
-	.btn-ghost {
-		@apply btn text-ink-700 hover:bg-ink-100;
+	/* Larger primary CTA used on store-hero surfaces. */
+	.btn-pill-large {
+		@apply inline-flex items-center justify-center bg-action text-white text-btn-large
+			rounded-full px-[28px] py-[14px] transition-transform duration-150
+			active:scale-95 focus-visible:outline-none focus-visible:ring-2
+			focus-visible:ring-action-focus focus-visible:ring-offset-2;
 	}
-	.card {
-		@apply rounded-xl bg-white shadow-card ring-1 ring-ink-200/60;
+	/* Compact dark utility button — global nav (Sign In, Bag, language). */
+	.btn-utility {
+		@apply inline-flex items-center justify-center bg-ink text-white text-btn-utility
+			rounded-[8px] px-[15px] py-[8px] transition-transform duration-150
+			active:scale-95;
 	}
-	.input {
-		@apply block w-full rounded-lg border-0 bg-white px-3 py-2 text-sm ring-1 ring-ink-200
-			placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-500;
+	/* Pearl secondary button. */
+	.btn-pearl {
+		@apply inline-flex items-center justify-center bg-pearl text-ink-80 text-caption
+			rounded-[11px] px-[14px] py-[8px] border border-divider transition-transform duration-150
+			active:scale-95;
 	}
-	.label {
-		@apply block text-xs font-medium uppercase tracking-wide text-ink-500;
+	/* Action-blue text link on light surfaces. */
+	.link-action {
+		@apply text-action transition-opacity duration-100 hover:opacity-80;
 	}
-	.kbd {
-		@apply rounded-md bg-ink-100 px-1.5 py-0.5 font-mono text-[11px] text-ink-700 ring-1 ring-ink-200;
+	.link-on-dark {
+		@apply text-action-sky transition-opacity duration-100 hover:opacity-80;
 	}
-	.chip {
-		@apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1;
+	/* Utility card. */
+	.utility-card {
+		@apply bg-canvas border border-hairline rounded-[18px] p-[24px];
 	}
+	/* Pill input. */
+	.pill-input {
+		@apply w-full bg-canvas text-ink text-body rounded-full h-[44px] px-[20px]
+			border border-black/10 focus:outline-none focus:ring-2 focus:ring-action-focus
+			placeholder:text-ink-48;
+	}
+	/* Frosted sub-nav strip. */
+	.subnav-frost {
+		@apply bg-parchment/80 backdrop-blur-frost backdrop-saturate-150 h-[52px];
+	}
+	/* Configurator chip. */
+	.config-chip {
+		@apply inline-flex items-center gap-2 bg-canvas text-ink text-caption
+			rounded-full px-4 py-3 border border-hairline cursor-pointer transition;
+	}
+	.config-chip-selected {
+		@apply border-2 border-action-focus;
+	}
+	/* Apple-tight headline rhythm helper. */
+	.tight {
+		letter-spacing: -0.374px;
+	}
+	.tight-hero {
+		letter-spacing: -0.28px;
+	}
+	/* Edge-to-edge product tile, light. */
+	.tile-light {
+		@apply bg-canvas text-ink py-[80px] px-[24px] md:px-[80px];
+	}
+	.tile-parchment {
+		@apply bg-parchment text-ink py-[80px] px-[24px] md:px-[80px];
+	}
+	.tile-dark {
+		@apply bg-tile-1 text-white py-[80px] px-[24px] md:px-[80px];
+	}
+	.tile-dark-2 {
+		@apply bg-tile-2 text-white py-[80px] px-[24px] md:px-[80px];
+	}
+	/* Status dot. */
+	.dot {
+		@apply inline-block h-[6px] w-[6px] rounded-full;
+	}
+}
+
+@layer utilities {
+	.bg-tile-1 { background-color: #272729; }
+	.bg-tile-2 { background-color: #2a2a2c; }
+	.bg-tile-3 { background-color: #252527; }
 }

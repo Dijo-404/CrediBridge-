@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { Header } from '../../../components/Header';
+import { Footer } from '../../../components/Footer';
 
 type SubmitState =
 	| { kind: 'idle' }
@@ -10,12 +11,12 @@ type SubmitState =
 	| { kind: 'success'; vendorId: string; vendorName: string; purposeCode: string }
 	| { kind: 'error'; message: string };
 
-const PURPOSE_INFO: Record<string, string> = {
-	saas: 'S1007 — Software services / SaaS subscriptions',
-	consulting: 'S0802 — Software consulting & development',
-	ites: 'S1102 — IT-enabled services (ITES)',
-	other: 'S0899 — Other miscellaneous software exports',
-};
+const SERVICE_OPTIONS = [
+	{ value: 'saas', label: 'SaaS subscriptions', code: 'S1007' },
+	{ value: 'consulting', label: 'Software consulting', code: 'S0802' },
+	{ value: 'ites', label: 'IT-enabled services', code: 'S1102' },
+	{ value: 'other', label: 'Other software exports', code: 'S0899' },
+];
 
 export default function OnboardPage() {
 	const [state, setState] = useState<SubmitState>({ kind: 'idle' });
@@ -27,11 +28,11 @@ export default function OnboardPage() {
 		const data = new FormData(form);
 		const payload = {
 			name: String(data.get('name') ?? '').trim(),
-			gstNumber: String(data.get('gstNumber') ?? '').trim(),
-			panNumber: String(data.get('panNumber') ?? '').trim(),
+			gstNumber: String(data.get('gstNumber') ?? '').trim().toUpperCase(),
+			panNumber: String(data.get('panNumber') ?? '').trim().toUpperCase(),
 			adBankAccount: String(data.get('adBankAccount') ?? '').trim(),
 			solanaWallet: String(data.get('solanaWallet') ?? '').trim(),
-			serviceType: String(data.get('serviceType') ?? 'other'),
+			serviceType,
 		};
 
 		setState({ kind: 'submitting' });
@@ -72,26 +73,37 @@ export default function OnboardPage() {
 
 	return (
 		<>
-			<Header />
-			<main className="mx-auto grid max-w-6xl gap-8 px-6 py-10 lg:grid-cols-[1.2fr_1fr]">
-				<section>
-					<div className="mb-6">
-						<Link href="/dashboard" className="text-xs text-ink-500 hover:underline">
-							← Back to dashboard
-						</Link>
-						<h1 className="mt-2 text-2xl font-semibold tracking-tight">Onboard a vendor</h1>
-						<p className="text-sm text-ink-500">
-							Compliance details are injected into every Dodo checkout and on-chain escrow deposit
-							so the AD bank can issue an e-FIRC at off-ramp.
-						</p>
-					</div>
+			<Header pageLabel="Onboard a vendor" />
 
-					<form onSubmit={onSubmit} className="card divide-y divide-ink-100">
-						<Section title="Business identity" subtitle="Public-facing name as it appears on invoices.">
-							<Field label="Business name" name="name" placeholder="Acme Software Pvt Ltd" required />
-						</Section>
+			<section className="bg-canvas">
+				<div className="mx-auto max-w-[1024px] px-6 py-[64px]">
+					<Link href="/dashboard" className="link-action text-caption">
+						← Back to dashboard
+					</Link>
+					<h1 className="mt-[16px] text-display-md tight-hero">Onboard a vendor.</h1>
+					<p className="mt-[8px] max-w-[680px] text-lead-airy text-ink-80">
+						Compliance details are injected into every Dodo checkout and on-chain escrow
+						deposit so the AD bank can issue an e-FIRC at off-ramp.
+					</p>
+				</div>
+			</section>
 
-						<Section
+			<section className="bg-parchment">
+				<div className="mx-auto grid max-w-[1024px] grid-cols-1 gap-[24px] px-6 py-[40px] lg:grid-cols-[1.4fr_1fr]">
+					<form onSubmit={onSubmit} className="utility-card divide-y divide-hairline p-0">
+						<FormSection
+							title="Business identity"
+							subtitle="Public-facing name as it appears on invoices."
+						>
+							<Field
+								label="Business name"
+								name="name"
+								placeholder="Acme Software Pvt Ltd"
+								required
+							/>
+						</FormSection>
+
+						<FormSection
 							title="FEMA / GST identifiers"
 							subtitle="Required for GST zero-rating and EDPMS reporting."
 						>
@@ -113,9 +125,9 @@ export default function OnboardPage() {
 								required
 								mono
 							/>
-						</Section>
+						</FormSection>
 
-						<Section
+						<FormSection
 							title="Banking & wallet"
 							subtitle="Where INR lands and where the Solana hop is anchored."
 						>
@@ -132,42 +144,47 @@ export default function OnboardPage() {
 								required
 								mono
 							/>
-						</Section>
+						</FormSection>
 
-						<Section
+						<FormSection
 							title="Service classification"
 							subtitle="Maps to RBI export purpose codes."
 						>
 							<div>
-								<label className="label">Service type</label>
-								<select
-									name="serviceType"
-									value={serviceType}
-									onChange={(e) => setServiceType(e.target.value)}
-									className="input mt-1"
-								>
-									<option value="saas">SaaS subscriptions</option>
-									<option value="consulting">Software consulting</option>
-									<option value="ites">IT-enabled services</option>
-									<option value="other">Other</option>
-								</select>
-								<p className="mt-2 text-[11px] text-ink-500">
-									Resolves to <span className="kbd">{PURPOSE_INFO[serviceType]}</span>
-								</p>
+								<div className="text-caption-strong text-ink-48">Service type</div>
+								<div className="mt-[10px] flex flex-wrap gap-[8px]">
+									{SERVICE_OPTIONS.map((opt) => {
+										const selected = opt.value === serviceType;
+										return (
+											<button
+												key={opt.value}
+												type="button"
+												onClick={() => setServiceType(opt.value)}
+												className={
+													'config-chip ' + (selected ? 'config-chip-selected' : '')
+												}
+												aria-pressed={selected}
+											>
+												<span>{opt.label}</span>
+												<span className="text-fine-print text-ink-48">{opt.code}</span>
+											</button>
+										);
+									})}
+								</div>
 							</div>
-						</Section>
+						</FormSection>
 
-						<div className="flex flex-wrap items-center justify-between gap-3 p-5">
-							<button type="button" className="btn-ghost" onClick={fillDemo}>
+						<div className="flex flex-wrap items-center justify-between gap-[12px] p-[24px]">
+							<button type="button" className="link-action text-caption" onClick={fillDemo}>
 								Use demo data
 							</button>
-							<div className="flex items-center gap-3">
-								<Link href="/dashboard" className="btn-secondary">
+							<div className="flex items-center gap-[12px]">
+								<Link href="/dashboard" className="link-action text-caption">
 									Cancel
 								</Link>
 								<button
 									type="submit"
-									className="btn-primary"
+									className="btn-pill"
 									disabled={state.kind === 'submitting'}
 								>
 									{state.kind === 'submitting' ? 'Saving…' : 'Save vendor profile'}
@@ -176,53 +193,61 @@ export default function OnboardPage() {
 						</div>
 					</form>
 
-					{state.kind === 'success' && (
-						<div className="mt-4 rounded-lg border border-accent-500/30 bg-accent-500/5 p-4 text-sm">
-							<div className="font-semibold text-accent-600">
+					<aside className="space-y-[24px]">
+						<div className="utility-card">
+							<h2 className="text-tagline">What we do with this</h2>
+							<ul className="mt-[16px] space-y-[16px]">
+								<Step label="Inject metadata" body="Every Dodo checkout carries your GSTIN, PAN, and purpose code." />
+								<Step label="On-chain trace" body="The Solana escrow deposit records the same metadata for audit." />
+								<Step label="EDPMS reference" body="Filed automatically with the AD bank at off-ramp." />
+								<Step label="e-FIRC issuance" body="Digitally signed PDF — your CA's favorite document." />
+							</ul>
+						</div>
+						<div className="bg-tile-1 rounded-[18px] p-[24px] text-white">
+							<h2 className="text-tagline">Why we ask for these</h2>
+							<p className="mt-[12px] text-body text-ink-muted">
+								Under FEMA, foreign revenue must route through an AD-authorized channel and be
+								reconciled with EDPMS. Without GSTIN + PAN + purpose code, no e-FIRC — and no
+								e-FIRC means losing 18% GST refund on every export invoice.
+							</p>
+						</div>
+					</aside>
+				</div>
+
+				{state.kind === 'success' && (
+					<div className="mx-auto max-w-[1024px] px-6 pb-[40px]">
+						<div className="utility-card border-action/30">
+							<div className="text-caption-strong text-action">
 								{state.vendorName} onboarded
 							</div>
-							<div className="mt-1 text-ink-600">
-								Purpose code <span className="kbd">{state.purposeCode}</span> · Vendor id{' '}
-								<span className="font-mono text-xs">{state.vendorId}</span>
+							<div className="mt-[8px] text-body">
+								Purpose code{' '}
+								<span className="font-mono text-caption-strong">{state.purposeCode}</span>{' '}
+								· Vendor id{' '}
+								<span className="font-mono text-caption">{state.vendorId}</span>
 							</div>
-							<Link href="/dashboard" className="btn-primary mt-3">
+							<Link href="/dashboard" className="btn-pill mt-[16px]">
 								Open dashboard
 							</Link>
 						</div>
-					)}
+					</div>
+				)}
 
-					{state.kind === 'error' && (
-						<div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-							{state.message}
+				{state.kind === 'error' && (
+					<div className="mx-auto max-w-[1024px] px-6 pb-[40px]">
+						<div className="utility-card border-red-300 bg-red-50">
+							<p className="text-body text-red-700">{state.message}</p>
 						</div>
-					)}
-				</section>
+					</div>
+				)}
+			</section>
 
-				<aside className="space-y-4">
-					<div className="card p-5">
-						<h2 className="text-sm font-semibold text-ink-900">What we do with this</h2>
-						<ul className="mt-3 space-y-3 text-xs text-ink-600">
-							<Step label="Inject metadata" body="Every Dodo checkout carries your GSTIN, PAN, and purpose code." />
-							<Step label="On-chain trace" body="The Solana escrow deposit records the same metadata for audit." />
-							<Step label="EDPMS reference" body="Filed automatically with the AD bank at off-ramp." />
-							<Step label="e-FIRC issuance" body="Digitally signed PDF — your CA's favorite document." />
-						</ul>
-					</div>
-					<div className="card p-5 bg-ink-900 text-white">
-						<h2 className="text-sm font-semibold">Why we ask for these</h2>
-						<p className="mt-2 text-xs text-ink-200">
-							Under FEMA, foreign revenue must route through an AD-authorized channel and be
-							reconciled with EDPMS. Without GSTIN + PAN + purpose code, no e-FIRC — and no
-							e-FIRC means losing 18% GST refund on every export invoice.
-						</p>
-					</div>
-				</aside>
-			</main>
+			<Footer />
 		</>
 	);
 }
 
-function Section({
+function FormSection({
 	title,
 	subtitle,
 	children,
@@ -232,12 +257,12 @@ function Section({
 	children: React.ReactNode;
 }) {
 	return (
-		<div className="grid gap-4 p-5 sm:grid-cols-[200px_1fr]">
+		<div className="grid gap-[20px] p-[24px] sm:grid-cols-[220px_1fr]">
 			<div>
-				<h3 className="text-sm font-semibold text-ink-900">{title}</h3>
-				{subtitle && <p className="mt-1 text-xs text-ink-500">{subtitle}</p>}
+				<h3 className="text-body-strong">{title}</h3>
+				{subtitle && <p className="mt-[4px] text-caption text-ink-48">{subtitle}</p>}
 			</div>
-			<div className="space-y-3">{children}</div>
+			<div className="space-y-[16px]">{children}</div>
 		</div>
 	);
 }
@@ -261,9 +286,9 @@ function Field({
 }) {
 	return (
 		<div>
-			<label className="label" htmlFor={name}>
+			<label htmlFor={name} className="text-caption-strong text-ink-48">
 				{label}
-				{required && <span className="ml-1 text-red-500">*</span>}
+				{required && <span className="ml-1 text-action">*</span>}
 			</label>
 			<input
 				id={name}
@@ -273,9 +298,9 @@ function Field({
 				required={required}
 				pattern={pattern}
 				title={title}
-				className={'input mt-1 ' + (mono ? 'font-mono text-sm' : '')}
 				autoComplete="off"
 				spellCheck={false}
+				className={'pill-input mt-[6px] ' + (mono ? 'font-mono text-caption' : '')}
 			/>
 		</div>
 	);
@@ -283,13 +308,13 @@ function Field({
 
 function Step({ label, body }: { label: string; body: string }) {
 	return (
-		<li className="flex gap-3">
-			<span className="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-900 text-[10px] font-semibold text-white">
+		<li className="flex gap-[12px]">
+			<span className="mt-[2px] grid h-[24px] w-[24px] shrink-0 place-items-center rounded-full bg-action text-white text-fine-print">
 				✓
 			</span>
 			<div>
-				<div className="text-sm font-medium text-ink-900">{label}</div>
-				<div className="text-[11px] leading-5 text-ink-500">{body}</div>
+				<div className="text-body-strong">{label}</div>
+				<div className="mt-[2px] text-caption text-ink-48">{body}</div>
 			</div>
 		</li>
 	);

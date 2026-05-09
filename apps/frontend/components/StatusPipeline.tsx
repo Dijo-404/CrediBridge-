@@ -24,37 +24,31 @@ const ORDER: Record<SessionStatus, number> = {
 export function StatusPipeline({ status }: { status: SessionStatus }) {
 	const current = ORDER[status];
 	return (
-		<ol className="flex w-full items-stretch gap-2">
+		<ol className="grid grid-cols-5 gap-[2px]">
 			{STAGES.map((s, i) => {
 				const state = i < current ? 'done' : i === current ? 'active' : 'idle';
 				return (
-					<li key={s.key} className="flex-1">
+					<li key={s.key} className="flex flex-col">
 						<div
 							className={
-								'flex items-center gap-2 rounded-md px-3 py-2 text-xs ring-1 transition ' +
+								'h-[3px] w-full ' +
 								(state === 'done'
-									? 'bg-accent-500/10 text-accent-600 ring-accent-500/30'
+									? 'bg-action'
 									: state === 'active'
-										? 'bg-brand-500/10 text-brand-700 ring-brand-500/30 animate-pulse-soft'
-										: 'bg-white text-ink-400 ring-ink-200')
+										? 'bg-action'
+										: 'bg-hairline')
 							}
-						>
-							<span
+						/>
+						<div className="pt-[10px]">
+							<div
 								className={
-									'grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ring-1 ' +
-									(state === 'done'
-										? 'bg-accent-500 text-white ring-accent-500'
-										: state === 'active'
-											? 'bg-brand-500 text-white ring-brand-500'
-											: 'bg-white text-ink-400 ring-ink-200')
+									'text-caption-strong tracking-[-0.224px] ' +
+									(state === 'idle' ? 'text-ink-48' : 'text-ink')
 								}
 							>
-								{state === 'done' ? '✓' : i + 1}
-							</span>
-							<div className="min-w-0">
-								<div className="truncate font-medium text-[12px] leading-tight">{s.label}</div>
-								<div className="truncate text-[10.5px] opacity-80">{s.sub}</div>
+								{s.label}
 							</div>
+							<div className="text-fine-print text-ink-48 mt-[2px]">{s.sub}</div>
 						</div>
 					</li>
 				);
@@ -64,13 +58,6 @@ export function StatusPipeline({ status }: { status: SessionStatus }) {
 }
 
 export function StatusChip({ status }: { status: SessionStatus }) {
-	const style: Record<SessionStatus, string> = {
-		pending: 'bg-ink-100 text-ink-700 ring-ink-200',
-		dodo_captured: 'bg-amber-50 text-amber-700 ring-amber-200',
-		solana_transiting: 'bg-brand-50 text-brand-700 ring-brand-200',
-		offramped: 'bg-violet-50 text-violet-700 ring-violet-200',
-		efirc_generated: 'bg-accent-500/10 text-accent-600 ring-accent-500/30',
-	};
 	const label: Record<SessionStatus, string> = {
 		pending: 'Pending',
 		dodo_captured: 'Dodo captured',
@@ -78,18 +65,15 @@ export function StatusChip({ status }: { status: SessionStatus }) {
 		offramped: 'Off-ramped',
 		efirc_generated: 'e-FIRC ready',
 	};
+	const dot =
+		status === 'efirc_generated'
+			? 'bg-action'
+			: status === 'pending'
+				? 'bg-ink-muted'
+				: 'bg-action';
 	return (
-		<span className={'chip ' + style[status]}>
-			<span
-				className={
-					'h-1.5 w-1.5 rounded-full ' +
-					(status === 'efirc_generated'
-						? 'bg-accent-500'
-						: status === 'pending'
-							? 'bg-ink-400'
-							: 'bg-current animate-pulse-soft')
-				}
-			/>
+		<span className="inline-flex items-center gap-2 text-caption tracking-[-0.224px]">
+			<span className={'dot ' + dot} />
 			{label[status]}
 		</span>
 	);

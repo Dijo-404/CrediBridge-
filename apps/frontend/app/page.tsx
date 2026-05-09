@@ -1,190 +1,191 @@
 import Link from 'next/link';
 import { Header } from '../components/Header';
+import { Footer } from '../components/Footer';
 
 export default function Home() {
 	return (
 		<>
-			<Header />
-			<main className="mx-auto max-w-6xl px-6 py-16">
-				<section className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-					<div>
-						<span className="chip mb-5 bg-brand-50 text-brand-700 ring-brand-200">
-							<span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
-							Solana Frontier × Superteam India · Dodo Payments
-						</span>
-						<h1 className="text-4xl font-semibold tracking-tight text-ink-900 sm:text-5xl">
-							Get paid globally in seconds.
-							<br />
-							Stay compliant locally,{' '}
-							<span className="bg-gradient-to-r from-brand-600 to-accent-500 bg-clip-text text-transparent">
-								automatically
-							</span>
-							.
-						</h1>
-						<p className="mt-5 max-w-xl text-base leading-7 text-ink-600">
-							CrediBridge bridges Dodo Payments capture, a Solana settlement hop, and an
-							Authorized Dealer bank off-ramp — so Indian software exporters receive INR
-							with a valid e-FIRC in roughly 90 seconds. RBI/FEMA happy. Founders happy.
-						</p>
-						<div className="mt-8 flex flex-wrap items-center gap-3">
-							<Link href="/dashboard" className="btn-primary">
-								Open the dashboard
-							</Link>
-							<Link href="/dashboard/onboard" className="btn-secondary">
-								Onboard a vendor
-							</Link>
-							<a
-								href="https://github.com"
-								className="btn-ghost"
-								target="_blank"
-								rel="noreferrer"
-							>
-								View source ↗
-							</a>
-						</div>
-						<dl className="mt-10 grid grid-cols-3 gap-6 border-t border-ink-200 pt-6">
-							<Stat value="~90s" label="Settlement time" />
-							<Stat value="~1.2%" label="Total fees" />
-							<Stat value="100%" label="e-FIRC coverage" />
-						</dl>
-					</div>
-					<div className="card p-6">
-						<div className="mb-3 flex items-center justify-between">
-							<div className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-								SWIFT vs CrediBridge
-							</div>
-							<span className="chip bg-ink-100 text-ink-700 ring-ink-200">USD 5,000 invoice</span>
-						</div>
-						<table className="w-full text-sm">
-							<thead>
-								<tr className="text-left text-xs uppercase tracking-wide text-ink-500">
-									<th className="py-2 font-medium">Method</th>
-									<th className="py-2 font-medium">Speed</th>
-									<th className="py-2 font-medium">Fees</th>
-									<th className="py-2 font-medium">e-FIRC</th>
-								</tr>
-							</thead>
-							<tbody className="divide-y divide-ink-100">
-								<TableRow method="SWIFT wire" speed="3–5 days" fees="$200+" efirc={false} />
-								<TableRow method="USDC → wallet" speed="~1s" fees="<$1" efirc={false} />
-								<TableRow method="Dodo standard" speed="1–3 days" fees="$200" efirc={true} />
-								<TableRow
-									method={<span className="font-semibold text-ink-900">CrediBridge</span>}
-									speed={<span className="font-semibold text-accent-600">~90s</span>}
-									fees={<span className="font-semibold text-accent-600">$61</span>}
-									efirc={true}
-									highlight
-								/>
-							</tbody>
-						</table>
-						<p className="mt-4 text-xs leading-5 text-ink-500">
-							A $100K/yr SaaS saves ≈ <span className="font-semibold text-ink-700">₹2.7 lakh</span>
-							{' '}in fees and unlocks <span className="font-semibold text-ink-700">18% GST refund</span>
-							{' '}on every export invoice.
-						</p>
-					</div>
-				</section>
+			<Header pageLabel="CrediBridge" />
 
-				<section className="mt-20">
-					<h2 className="text-xl font-semibold tracking-tight">How a payment flows</h2>
-					<div className="mt-6 grid gap-4 md:grid-cols-5">
-						{FLOW_STEPS.map((s, i) => (
-							<div key={s.title} className="card relative p-5">
-								<div className="mb-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-ink-900 text-xs font-semibold text-white">
-									{i + 1}
-								</div>
-								<h3 className="text-sm font-semibold text-ink-900">{s.title}</h3>
-								<p className="mt-1 text-xs leading-5 text-ink-500">{s.body}</p>
-							</div>
+			{/* HERO TILE — light, the manifesto */}
+			<section className="tile-light text-center">
+				<div className="mx-auto max-w-[820px]">
+					<h1 className="text-hero-display tight-hero">
+						Stablecoin speed.
+						<br />
+						<span className="text-action">Banking compliance.</span>
+					</h1>
+					<p className="mt-[24px] text-lead">
+						Cross-border payments for Indian software exporters — captured by Dodo,
+						settled on Solana, off-ramped to INR with a valid e-FIRC. In about 90 seconds.
+					</p>
+					<div className="mt-[40px] flex items-center justify-center gap-[16px]">
+						<Link href="/dashboard" className="btn-pill">Open dashboard</Link>
+						<Link href="/dashboard/onboard" className="btn-pill-ghost">Onboard a vendor</Link>
+					</div>
+				</div>
+			</section>
+
+			{/* DARK TILE — the comparison */}
+			<section className="tile-dark">
+				<div className="mx-auto max-w-[1024px]">
+					<div className="text-center">
+						<h2 className="text-display-lg">The math is unambiguous.</h2>
+						<p className="mt-[16px] text-lead-airy text-ink-muted">
+							A USD 5,000 invoice, four ways.
+						</p>
+					</div>
+					<div className="mt-[64px] grid grid-cols-1 gap-[2px] md:grid-cols-4">
+						<CompareCard method="SWIFT wire" speed="3–5 days" fees="$200+" efirc="Yes" />
+						<CompareCard method="USDC → wallet" speed="~1 second" fees="<$1" efirc="No" />
+						<CompareCard method="Dodo standard" speed="1–3 days" fees="$200" efirc="Yes" />
+						<CompareCard
+							method="CrediBridge"
+							speed="~90 seconds"
+							fees="$61"
+							efirc="Yes"
+							highlight
+						/>
+					</div>
+					<p className="mt-[40px] text-center text-caption text-ink-muted">
+						A $100K/year SaaS saves ≈ ₹2.7 lakh in fees and unlocks the 18% GST refund on
+						every export invoice.
+					</p>
+				</div>
+			</section>
+
+			{/* PARCHMENT TILE — the flow */}
+			<section className="tile-parchment">
+				<div className="mx-auto max-w-[1024px]">
+					<div className="text-center">
+						<h2 className="text-display-lg">How a payment flows.</h2>
+						<p className="mt-[16px] text-lead-airy">
+							Five hops. Each one carries the regulatory metadata forward.
+						</p>
+					</div>
+					<ol className="mt-[64px] grid grid-cols-1 gap-[24px] md:grid-cols-5">
+						{FLOW.map((s, i) => (
+							<li key={s.title} className="utility-card">
+								<div className="text-caption-strong text-action">{`0${i + 1}`}</div>
+								<div className="mt-2 text-body-strong">{s.title}</div>
+								<p className="mt-2 text-caption text-ink-80">{s.body}</p>
+							</li>
 						))}
-					</div>
-				</section>
+					</ol>
+				</div>
+			</section>
 
-				<section className="mt-16">
-					<h2 className="text-xl font-semibold tracking-tight">Why this passes RBI</h2>
-					<div className="mt-6 grid gap-4 md:grid-cols-3">
-						<Compliance
-							title="Merchant of Record"
-							body="Dodo holds the PA-CB authorization (₹15 cr net worth), not us. Foreign payment legally lands inside an authorized aggregator."
-						/>
-						<Compliance
-							title="Purpose codes on-chain"
-							body="Every escrow deposit carries S1007/S0802 metadata. EDPMS reference filed with the AD bank at off-ramp."
-						/>
-						<Compliance
-							title="e-FIRC in 90s"
-							body="Auto-issued PDF lists FIRC number, GSTIN, PAN, AD bank reference, Solana tx — exactly what your CA wants."
-						/>
+			{/* DARK TILE — compliance pillars */}
+			<section className="tile-dark-2">
+				<div className="mx-auto max-w-[1024px]">
+					<div className="grid grid-cols-1 items-start gap-[48px] md:grid-cols-2">
+						<div>
+							<h2 className="text-display-lg">Why this passes RBI.</h2>
+							<p className="mt-[16px] text-lead-airy text-ink-muted">
+								Three load-bearing decisions, each one auditable end to end.
+							</p>
+							<Link href="/dashboard" className="btn-pill-ghost-on-dark mt-[32px]">
+								See it in motion
+							</Link>
+						</div>
+						<div className="space-y-[24px]">
+							<Pillar
+								title="Merchant of Record"
+								body="Dodo holds the PA-CB authorization. Foreign payment legally lands inside an authorized aggregator, not a wallet."
+							/>
+							<Pillar
+								title="Purpose codes on-chain"
+								body="Every escrow deposit carries S1007 / S0802 metadata. The Solana hop is the audit trail."
+							/>
+							<Pillar
+								title="e-FIRC in 90 seconds"
+								body="Auto-issued PDF lists FIRC number, GSTIN, PAN, AD bank reference, and the Solana tx — exactly what your CA wants."
+							/>
+						</div>
 					</div>
-				</section>
-			</main>
-			<footer className="border-t border-ink-200 py-8 text-center text-xs text-ink-500">
-				CrediBridge MVP · Demo runs offline by default · Plug in DODO_API_KEY + HELIUS_API_KEY for live mode
-			</footer>
+				</div>
+			</section>
+
+			{/* LIGHT TILE — final CTA */}
+			<section className="tile-light text-center">
+				<div className="mx-auto max-w-[680px]">
+					<h2 className="text-display-md tight-hero">Get paid globally in seconds.</h2>
+					<p className="mt-[12px] text-lead">
+						Stay compliant locally, automatically.
+					</p>
+					<div className="mt-[40px] flex items-center justify-center gap-[16px]">
+						<Link href="/dashboard/onboard" className="btn-pill-large">
+							Get started
+						</Link>
+						<Link href="/dashboard" className="link-action text-body">
+							View the live demo →
+						</Link>
+					</div>
+				</div>
+			</section>
+
+			<Footer />
 		</>
 	);
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
-	return (
-		<div>
-			<dt className="text-xs uppercase tracking-wide text-ink-500">{label}</dt>
-			<dd className="mt-1 text-2xl font-semibold tracking-tight text-ink-900">{value}</dd>
-		</div>
-	);
-}
-
-function TableRow({
+function CompareCard({
 	method,
 	speed,
 	fees,
 	efirc,
 	highlight,
 }: {
-	method: React.ReactNode;
-	speed: React.ReactNode;
-	fees: React.ReactNode;
-	efirc: boolean;
+	method: string;
+	speed: string;
+	fees: string;
+	efirc: string;
 	highlight?: boolean;
 }) {
 	return (
-		<tr className={highlight ? 'bg-accent-500/5' : ''}>
-			<td className="py-2.5 text-ink-700">{method}</td>
-			<td className="py-2.5 text-ink-700">{speed}</td>
-			<td className="py-2.5 text-ink-700">{fees}</td>
-			<td className="py-2.5">
-				{efirc ? (
-					<span className="text-accent-600">✓</span>
-				) : (
-					<span className="text-ink-400">✕</span>
-				)}
-			</td>
-		</tr>
-	);
-}
-
-function Compliance({ title, body }: { title: string; body: string }) {
-	return (
-		<div className="card p-5">
-			<h3 className="text-sm font-semibold text-ink-900">{title}</h3>
-			<p className="mt-2 text-xs leading-5 text-ink-500">{body}</p>
+		<div
+			className={
+				'flex flex-col gap-[12px] p-[24px] ' +
+				(highlight ? 'bg-tile-3 ring-2 ring-action' : '')
+			}
+		>
+			<div className={'text-caption-strong ' + (highlight ? 'text-action-sky' : 'text-ink-muted')}>
+				{highlight ? 'CrediBridge' : 'Comparison'}
+			</div>
+			<div className={'text-body-strong ' + (highlight ? 'text-white' : 'text-white')}>
+				{method}
+			</div>
+			<dl className="mt-2 space-y-2 text-caption text-ink-muted">
+				<div className="flex justify-between">
+					<dt>Speed</dt>
+					<dd className={highlight ? 'text-action-sky' : 'text-white'}>{speed}</dd>
+				</div>
+				<div className="flex justify-between">
+					<dt>Fees</dt>
+					<dd className={highlight ? 'text-action-sky' : 'text-white'}>{fees}</dd>
+				</div>
+				<div className="flex justify-between">
+					<dt>e-FIRC</dt>
+					<dd className={highlight ? 'text-action-sky' : 'text-white'}>{efirc}</dd>
+				</div>
+			</dl>
 		</div>
 	);
 }
 
-const FLOW_STEPS = [
+function Pillar({ title, body }: { title: string; body: string }) {
+	return (
+		<div className="border-t border-white/15 pt-[24px]">
+			<h3 className="text-tagline">{title}</h3>
+			<p className="mt-[8px] text-body text-ink-muted">{body}</p>
+		</div>
+	);
+}
+
+const FLOW = [
 	{ title: 'Foreign client pays', body: 'Card / PayPal / wallet via Dodo checkout.' },
-	{
-		title: 'Webhook captured',
-		body: 'HMAC-verified payment.succeeded event hits CrediBridge.',
-	},
-	{
-		title: 'Solana escrow',
-		body: 'USDC deposited into a vendor PDA vault on Token-2022.',
-	},
-	{
-		title: 'AD bank off-ramp',
-		body: 'Programmatic INR credit with S1007 + EDPMS reference.',
-	},
+	{ title: 'Webhook captured', body: 'HMAC-verified payment.succeeded event hits CrediBridge.' },
+	{ title: 'Solana escrow', body: 'USDC deposited into a vendor PDA on Token-2022.' },
+	{ title: 'AD bank off-ramp', body: 'Programmatic INR credit with S1007 + EDPMS.' },
 	{ title: 'e-FIRC issued', body: 'Digitally signed PDF in the vendor inbox.' },
 ];
