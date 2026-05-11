@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { createVendor, getVendor, listVendors } from '../db/store';
-import { getPurposeCode, PURPOSE_CODES } from '../services/purpose-codes';
+import { createVendor, getVendor, listVendors } from '../db/store.js';
+import { getPurposeCode, PURPOSE_CODES } from '../services/purpose-codes.js';
 
 interface CreateVendorBody {
 	name?: string;
@@ -17,13 +17,7 @@ export async function registerVendorRoutes(app: FastifyInstance) {
 	app.post('/api/vendors', async (request, reply) => {
 		const body = request.body as CreateVendorBody;
 
-		if (
-			!body?.name ||
-			!body.gstNumber ||
-			!body.panNumber ||
-			!body.adBankAccount ||
-			!body.solanaWallet
-		) {
+		if (!body?.name || !body.gstNumber || !body.panNumber || !body.adBankAccount || !body.solanaWallet) {
 			reply.code(400).send({
 				error: 'name, gstNumber, panNumber, adBankAccount, solanaWallet are required',
 			});
@@ -32,11 +26,10 @@ export async function registerVendorRoutes(app: FastifyInstance) {
 
 		const purposeFromBody = body.purposeCode as keyof typeof PURPOSE_CODES | undefined;
 		const purposeCode =
-			(purposeFromBody && PURPOSE_CODES[purposeFromBody]
-				? purposeFromBody
-				: undefined) ?? getPurposeCode(body.serviceType);
+			(purposeFromBody && PURPOSE_CODES[purposeFromBody] ? purposeFromBody : undefined) ??
+			getPurposeCode(body.serviceType);
 
-		const vendor = createVendor({
+		const vendor = await createVendor({
 			name: body.name,
 			gst_number: body.gstNumber,
 			pan_number: body.panNumber,
@@ -51,17 +44,15 @@ export async function registerVendorRoutes(app: FastifyInstance) {
 
 	app.get('/api/vendors/:id', async (request, reply) => {
 		const { id } = request.params as { id: string };
-		const vendor = getVendor(id);
-
+		const vendor = await getVendor(id);
 		if (!vendor) {
 			reply.code(404).send({ error: 'Vendor not found' });
 			return;
 		}
-
 		reply.send({ vendor });
 	});
 
 	app.get('/api/vendors', async (_request, reply) => {
-		reply.send({ vendors: listVendors() });
+		reply.send({ vendors: await listVendors() });
 	});
 }

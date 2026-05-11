@@ -1,4 +1,5 @@
-import { EventEmitter } from 'events';
+import { Queue, Worker, Job } from 'bullmq';
+import { getRedis } from './redis.js';
 
 export interface BridgeJobPayload {
 	sessionId: string;
@@ -9,91 +10,52 @@ export interface BridgeJobPayload {
 	dodoPaymentId?: string;
 }
 
-export interface QueueJob<T> {
-	id: string;
-	name: string;
-	payload: T;
-	attempts: number;
-	maxAttempts: number;
-	createdAt: number;
+export type JobHandler<T> = (job: Job<T>) => Promise<void>;
+
+const QUEUE_NAME = 'payment';
+
+let _queue: Queue<BridgeJobPayload> | null = null;
+let _worker: Worker<BridgeJobPayload> | null = null;
+
+export function getPaymentQueue(): Queue<BridgeJobPayload> {
+	if (!_queue) {
+		_queue = new Queue<BridgeJobPayload>(QUEUE_NAME, {
+			connection: getRedis(),
+			defaultJobOptions: {
+				attempts: 8,
+				backoff: { type: 'exponential', delay: 200 },
+				removeOnComplete: { count: 1000 },
+				removeOnFail: { count: 500 },
+			},
+		});
+	}
+	return _queue;
 }
 
-export type JobHandler<T> = (job: QueueJob<T>) => Promise<void>;
-
-interface QueueOptions {
-	maxAttempts?: number;
-	baseDelayMs?: number;
+export function startPaymentWorker(
+	handler: JobHandler<BridgeJobPayload>
+): Worker<BridgeJobPayload> {
+	if (_worker) return _worker;
+	_worker = new Worker<BridgeJobPayload>(QUEUE_NAME, handler, {
+		connection: getRedis(),
+		concurrency: 5,
+	});
+	_worker.on('failed', (job, err) => {
+		console.error(`[queue] job ${job?.id} failed:`, err.message);
+	});
+	return _worker;
 }
 
-/**
- * Minimal in-memory queue with exponential backoff and a dead letter list.
- * Designed to be swapped for BullMQ + Redis in production by replacing this
- * module's exports while keeping the same shape.
- */
-export class InMemoryQueue<T> extends EventEmitter {
-	private readonly maxAttempts: number;
-	private readonly baseDelayMs: number;
-	private handler?: JobHandler<T>;
-	private readonly dlq: QueueJob<T>[] = [];
-	private counter = 0;
-
-	constructor(public readonly name: string, options: QueueOptions = {}) {
-		super();
-		this.maxAttempts = options.maxAttempts ?? 8;
-		this.baseDelayMs = options.baseDelayMs ?? 50;
-	}
-
-	process(handler: JobHandler<T>): void {
-		this.handler = handler;
-	}
-
-	async add(name: string, payload: T): Promise<QueueJob<T>> {
-		const job: QueueJob<T> = {
-			id: `${this.name}-${++this.counter}-${Date.now()}`,
-			name,
-			payload,
-			attempts: 0,
-			maxAttempts: this.maxAttempts,
-			createdAt: Date.now(),
-		};
-		this.emit('queued', job);
-		// Fire-and-forget: don't block the caller (mimics BullMQ semantics).
-		void this.run(job);
-		return job;
-	}
-
-	private async run(job: QueueJob<T>): Promise<void> {
-		if (!this.handler) {
-			this.dlq.push(job);
-			this.emit('dead-letter', job, new Error('No handler registered'));
-			return;
-		}
-
-		while (job.attempts < job.maxAttempts) {
-			job.attempts += 1;
-			try {
-				await this.handler(job);
-				this.emit('completed', job);
-				return;
-			} catch (error) {
-				this.emit('failed', job, error);
-				if (job.attempts >= job.maxAttempts) {
-					this.dlq.push(job);
-					this.emit('dead-letter', job, error);
-					return;
-				}
-				const delay = this.baseDelayMs * Math.pow(2, job.attempts - 1);
-				await new Promise((resolve) => setTimeout(resolve, delay));
-			}
-		}
-	}
-
-	getDeadLetter(): ReadonlyArray<QueueJob<T>> {
-		return this.dlq;
-	}
+export async function closeQueue(): Promise<void> {
+	await _worker?.close();
+	await _queue?.close();
+	_worker = null;
+	_queue = null;
 }
 
-export const paymentQueue = new InMemoryQueue<BridgeJobPayload>('payment', {
-	maxAttempts: 8,
-	baseDelayMs: 50,
-});
+export const paymentQueue = {
+	add: (name: string, payload: BridgeJobPayload) =>
+		getPaymentQueue().add(name, payload),
+	process: (handler: JobHandler<BridgeJobPayload>) =>
+		startPaymentWorker(handler),
+};

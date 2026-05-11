@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { createHmac, randomUUID } from 'crypto';
 import Fastify, { FastifyInstance } from 'fastify';
 
-import { registerWebhookRoutes } from '../routes/webhooks';
-import { registerSessionRoutes } from '../routes/sessions';
-import { registerVendorRoutes } from '../routes/vendors';
-import { createVendor, createSession, getSession } from '../db/store';
-import { verifyDodoWebhook } from '../services/dodo';
+import { registerWebhookRoutes } from '../routes/webhooks.js';
+import { registerSessionRoutes } from '../routes/sessions.js';
+import { registerVendorRoutes } from '../routes/vendors.js';
+import { createVendor, createSession, getSession } from '../db/store.js';
+import { verifyDodoWebhook } from '../services/dodo.js';
 
 const SECRET = 'whsec_unit_test';
 
@@ -47,12 +47,11 @@ test('verifyDodoWebhook rejects a tampered body', () => {
 	const body = JSON.stringify({ type: 'payment.succeeded', data: {} });
 	const id = 'whk_2';
 	const ts = Math.floor(Date.now() / 1000);
-	const sig = sign(body, id, ts);
 	assert.equal(
 		verifyDodoWebhook(body + 'x', {
 			'webhook-id': id,
 			'webhook-timestamp': String(ts),
-			'webhook-signature': sig,
+			'webhook-signature': sign(body, id, ts),
 		}, SECRET),
 		false
 	);
@@ -61,7 +60,7 @@ test('verifyDodoWebhook rejects a tampered body', () => {
 test('verifyDodoWebhook rejects stale timestamp', () => {
 	const body = JSON.stringify({ type: 'payment.succeeded', data: {} });
 	const id = 'whk_3';
-	const ts = Math.floor(Date.now() / 1000) - 10_000; // way outside the 5-min window
+	const ts = Math.floor(Date.now() / 1000) - 10_000;
 	assert.equal(
 		verifyDodoWebhook(body, {
 			'webhook-id': id,
@@ -86,7 +85,7 @@ test('webhook route rejects unsigned payload with 401', async () => {
 
 test('webhook route processes a signed payment.succeeded end-to-end', async () => {
 	const app = await buildApp();
-	const vendor = createVendor({
+	const vendor = await createVendor({
 		name: 'Test Co',
 		gst_number: '27AABCU9603R1ZM',
 		pan_number: 'AABCU9603R',
@@ -94,7 +93,7 @@ test('webhook route processes a signed payment.succeeded end-to-end', async () =
 		solana_wallet: 'wallet',
 		purpose_code: 'S1007',
 	});
-	const session = createSession({ vendor, amount_usd: 1234 });
+	const session = await createSession({ vendor, amount_usd: 1234 });
 
 	const body = JSON.stringify({
 		type: 'payment.succeeded',
@@ -126,13 +125,12 @@ test('webhook route processes a signed payment.succeeded end-to-end', async () =
 	});
 	assert.equal(res.statusCode, 200);
 
-	// The queue runs asynchronously; wait briefly for the session to settle.
-	for (let i = 0; i < 30; i++) {
-		if (getSession(session.id)?.status === 'efirc_generated') break;
-		await new Promise((r) => setTimeout(r, 50));
+	for (let i = 0; i < 40; i++) {
+		if ((await getSession(session.id))?.status === 'efirc_generated') break;
+		await new Promise((r) => setTimeout(r, 100));
 	}
 
-	const final = getSession(session.id);
+	const final = await getSession(session.id);
 	assert.ok(final, 'session must exist after webhook');
 	assert.equal(final!.status, 'efirc_generated');
 	assert.ok(final!.solana_tx_signature, 'solana signature should be populated');
@@ -142,7 +140,7 @@ test('webhook route processes a signed payment.succeeded end-to-end', async () =
 
 test('webhook route deduplicates by webhook-id', async () => {
 	const app = await buildApp();
-	const vendor = createVendor({
+	const vendor = await createVendor({
 		name: 'Dedup Co',
 		gst_number: '29AABCD1234E1Z5',
 		pan_number: 'AABCD1234E',
@@ -150,7 +148,7 @@ test('webhook route deduplicates by webhook-id', async () => {
 		solana_wallet: 'wallet2',
 		purpose_code: 'S0802',
 	});
-	const session = createSession({ vendor, amount_usd: 99 });
+	const session = await createSession({ vendor, amount_usd: 99 });
 
 	const body = JSON.stringify({
 		type: 'payment.succeeded',
@@ -176,7 +174,6 @@ test('webhook route deduplicates by webhook-id', async () => {
 
 	const first = await app.inject({ method: 'POST', url: '/webhooks/dodo', headers, payload: body });
 	const second = await app.inject({ method: 'POST', url: '/webhooks/dodo', headers, payload: body });
-
 	assert.equal(first.statusCode, 200);
 	assert.equal(second.statusCode, 200);
 	assert.match(second.body, /deduped/);

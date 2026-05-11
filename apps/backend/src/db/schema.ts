@@ -1,25 +1,16 @@
-/**
- * PostgreSQL DDL for the CrediBridge MVP.
- *
- * The MVP runtime currently uses an in-memory store ([store.ts]) so the demo can
- * boot with no infrastructure. These statements are the authoritative schema for
- * a real Postgres deployment — they should be applied via a migration tool
- * (e.g. node-pg-migrate, drizzle-kit) before swapping the store for a Postgres
- * implementation.
- */
-
 export const VENDORS_TABLE_DDL = `
 CREATE TABLE IF NOT EXISTS vendors (
-  id              UUID PRIMARY KEY,
-  name            TEXT NOT NULL,
-  gst_number      VARCHAR(15) NOT NULL UNIQUE,
-  pan_number      VARCHAR(10) NOT NULL,
-  ad_bank_account TEXT NOT NULL,
-  solana_wallet   TEXT NOT NULL,
-  purpose_code    VARCHAR(8) NOT NULL CHECK (purpose_code IN ('S1007','S0802','S0899','S1102','S1301')),
-  edpms_irm_number TEXT,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id                          UUID PRIMARY KEY,
+  name                        TEXT NOT NULL,
+  gst_number                  VARCHAR(15) NOT NULL UNIQUE,
+  pan_number                  VARCHAR(10) NOT NULL,
+  ad_bank_account             TEXT NOT NULL,
+  solana_wallet               TEXT NOT NULL,
+  purpose_code                VARCHAR(8) NOT NULL CHECK (purpose_code IN ('S1007','S0802','S0899','S1102','S1301')),
+  edpms_irm_number            TEXT,
+  razorpay_fund_account_id    TEXT,
+  created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS vendors_gst_idx ON vendors (gst_number);
 `;
@@ -41,6 +32,7 @@ CREATE TABLE IF NOT EXISTS payment_sessions (
   ),
   solana_tx_signature   TEXT,
   efirc_document_url    TEXT,
+  efirc_document        TEXT,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -1,26 +1,17 @@
 import { FastifyInstance } from 'fastify';
-import { createSession, getSession, getVendor, listSessions } from '../db/store';
-import { createDodoPaymentLink } from '../services/dodo';
-import { generateEfirc } from '../services/efirc';
-import { simulateOfframp } from '../services/offramp';
-import { settleSessionById } from '../services/settlement';
+import { createSession, getSession, getVendor, listSessions, getEfircDocument } from '../db/store.js';
+import { createDodoPaymentLink } from '../services/dodo.js';
+import { generateEfirc } from '../services/efirc.js';
+import { executeOfframp } from '../services/offramp.js';
+import { settleSessionById } from '../services/settlement.js';
 
 interface CreateSessionBody {
 	vendorId?: string;
 	amountUsd?: number;
 	buyerCountry?: string;
 	invoiceNumber?: string;
-	customer?: {
-		name?: string;
-		email?: string;
-	};
-	billing?: {
-		city?: string;
-		country?: string;
-		state?: string;
-		zipcode?: string;
-		street?: string;
-	};
+	customer?: { name?: string; email?: string };
+	billing?: { city?: string; country?: string; state?: string; zipcode?: string; street?: string };
 }
 
 export async function registerSessionRoutes(app: FastifyInstance) {
@@ -33,27 +24,23 @@ export async function registerSessionRoutes(app: FastifyInstance) {
 			!Number.isFinite(body.amountUsd) ||
 			body.amountUsd <= 0
 		) {
-			reply
-				.code(400)
-				.send({ error: 'vendorId and a positive numeric amountUsd are required' });
+			reply.code(400).send({ error: 'vendorId and a positive numeric amountUsd are required' });
 			return;
 		}
 
-		const vendor = getVendor(body.vendorId);
+		const vendor = await getVendor(body.vendorId);
 		if (!vendor) {
 			reply.code(404).send({ error: 'Vendor not found' });
 			return;
 		}
 
-		const session = createSession({
+		const session = await createSession({
 			vendor,
 			amount_usd: body.amountUsd,
 			buyer_country: body.buyerCountry,
 			invoice_number: body.invoiceNumber,
 		});
 
-		// Best-effort: try to generate a Dodo checkout link. Falls back to a mock URL when
-		// API credentials are absent so the flow stays demo-able offline.
 		let checkout: { id: string; payment_link: string } | undefined;
 		try {
 			checkout = await createDodoPaymentLink({
@@ -80,25 +67,22 @@ export async function registerSessionRoutes(app: FastifyInstance) {
 
 	app.get('/api/sessions/:id', async (request, reply) => {
 		const { id } = request.params as { id: string };
-		const session = getSession(id);
-
+		const session = await getSession(id);
 		if (!session) {
 			reply.code(404).send({ error: 'Session not found' });
 			return;
 		}
-
 		reply.send({ session });
 	});
 
 	app.get('/api/sessions', async (request, reply) => {
 		const { vendorId } = request.query as { vendorId?: string };
-		const sessions = listSessions(vendorId);
-		reply.send({ sessions });
+		reply.send({ sessions: await listSessions(vendorId) });
 	});
 
 	app.get('/api/sessions/:id/efirc', async (request, reply) => {
 		const { id } = request.params as { id: string };
-		const session = getSession(id);
+		const session = await getSession(id);
 		if (!session) {
 			reply.code(404).send({ error: 'Session not found' });
 			return;
@@ -107,26 +91,32 @@ export async function registerSessionRoutes(app: FastifyInstance) {
 			reply.code(409).send({ error: 'e-FIRC not yet available for this session' });
 			return;
 		}
-		const vendor = getVendor(session.vendor_id);
+
+		const stored = await getEfircDocument(id);
+		if (stored) {
+			const pdf = Buffer.from(stored, 'base64');
+			return reply
+				.header('content-type', 'application/pdf')
+				.header('content-disposition', `attachment; filename="efirc-${id}.pdf"`)
+				.send(pdf);
+		}
+
+		const vendor = await getVendor(session.vendor_id);
 		if (!vendor) {
 			reply.code(404).send({ error: 'Vendor not found' });
 			return;
 		}
-		const offramp = await simulateOfframp(session, vendor);
+		const offramp = await executeOfframp(session, vendor);
 		const efirc = await generateEfirc(session, vendor, offramp);
 		const pdf = Buffer.from(efirc.base64, 'base64');
 		reply
 			.header('content-type', 'application/pdf')
-			.header(
-				'content-disposition',
-				`attachment; filename="${efirc.filename}"`
-			)
+			.header('content-disposition', `attachment; filename="${efirc.filename}"`)
 			.send(pdf);
 	});
 
 	app.post('/api/sessions/:id/settle', async (request, reply) => {
 		const { id } = request.params as { id: string };
-
 		try {
 			const result = await settleSessionById(id);
 			reply.send(result);

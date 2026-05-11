@@ -1,20 +1,14 @@
 import { FastifyInstance, FastifyPluginAsync, FastifyRequest } from 'fastify';
-import { parseDodoWebhook, verifyDodoWebhook } from '../services/dodo';
-import { paymentQueue } from '../queues/payment';
-import { handleSolanaFinality } from '../services/settlement';
-import { updateSession } from '../db/store';
+import { parseDodoWebhook, verifyDodoWebhook } from '../services/dodo.js';
+import { paymentQueue } from '../queues/payment.js';
+import { handleSolanaFinality } from '../services/settlement.js';
+import { markWebhookProcessed, updateSession } from '../db/store.js';
+import type { Job } from 'bullmq';
+import type { BridgeJobPayload } from '../queues/payment.js';
 
-const seenWebhookIds = new Set<string>();
-const WEBHOOK_ID_TTL_MS = 24 * 60 * 60 * 1000;
-
-function rememberWebhookId(id: string) {
-	seenWebhookIds.add(id);
-	setTimeout(() => seenWebhookIds.delete(id), WEBHOOK_ID_TTL_MS).unref?.();
-}
-
-paymentQueue.process(async (job) => {
-	const { sessionId, dodoPaymentId } = job.payload;
-	updateSession(sessionId, {
+paymentQueue.process(async (job: Job<BridgeJobPayload>) => {
+	const { sessionId, dodoPaymentId } = job.data;
+	await updateSession(sessionId, {
 		status: 'dodo_captured',
 		dodo_session_id: dodoPaymentId ?? `dodo-${sessionId}`,
 	});
@@ -22,8 +16,6 @@ paymentQueue.process(async (job) => {
 });
 
 const webhookPlugin: FastifyPluginAsync = async (instance) => {
-	// Encapsulated parser: only this plugin sees JSON as { __raw, parsed }.
-	// The default JSON parser remains active everywhere else.
 	instance.addContentTypeParser(
 		'application/json',
 		{ parseAs: 'string' },
@@ -59,13 +51,14 @@ const webhookPlugin: FastifyPluginAsync = async (instance) => {
 		}
 
 		const webhookId = headers['webhook-id']!;
-		if (seenWebhookIds.has(webhookId)) {
+		const event = parseDodoWebhook(rawBody);
+
+		const inserted = await markWebhookProcessed(webhookId, event.type);
+		if (!inserted) {
 			reply.send({ ok: true, deduped: true });
 			return;
 		}
-		rememberWebhookId(webhookId);
 
-		const event = parseDodoWebhook(rawBody);
 		if (event.type === 'payment.succeeded') {
 			const metadata = event.data.metadata ?? {};
 			const sessionId = metadata.credbridge_session_id;

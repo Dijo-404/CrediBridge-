@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Fastify, { FastifyInstance } from 'fastify';
-import { registerSessionRoutes } from '../routes/sessions';
-import { registerVendorRoutes } from '../routes/vendors';
-import { createVendor, createSession, getSession } from '../db/store';
-import { settleSessionById } from '../services/settlement';
+import { registerSessionRoutes } from '../routes/sessions.js';
+import { registerVendorRoutes } from '../routes/vendors.js';
+import { createVendor, createSession, getSession } from '../db/store.js';
+import { settleSessionById } from '../services/settlement.js';
 
 async function buildApp(): Promise<FastifyInstance> {
 	const app = Fastify();
@@ -14,7 +14,7 @@ async function buildApp(): Promise<FastifyInstance> {
 	return app;
 }
 
-function makeVendor() {
+async function makeVendor() {
 	return createVendor({
 		name: 'Acme Software',
 		gst_number: '29ABCDE1234F1Z5',
@@ -27,7 +27,7 @@ function makeVendor() {
 
 test('bug #1: amountUsd validation rejects 0', async () => {
 	const app = await buildApp();
-	const vendor = makeVendor();
+	const vendor = await makeVendor();
 	const res = await app.inject({
 		method: 'POST',
 		url: '/api/sessions/create',
@@ -39,7 +39,7 @@ test('bug #1: amountUsd validation rejects 0', async () => {
 
 test('bug #1: amountUsd validation rejects negative numbers', async () => {
 	const app = await buildApp();
-	const vendor = makeVendor();
+	const vendor = await makeVendor();
 	const res = await app.inject({
 		method: 'POST',
 		url: '/api/sessions/create',
@@ -51,7 +51,7 @@ test('bug #1: amountUsd validation rejects negative numbers', async () => {
 
 test('bug #1: amountUsd validation rejects non-number', async () => {
 	const app = await buildApp();
-	const vendor = makeVendor();
+	const vendor = await makeVendor();
 	const res = await app.inject({
 		method: 'POST',
 		url: '/api/sessions/create',
@@ -63,20 +63,19 @@ test('bug #1: amountUsd validation rejects non-number', async () => {
 
 test('bug #1: amountUsd validation rejects NaN/Infinity', async () => {
 	const app = await buildApp();
-	const vendor = makeVendor();
+	const vendor = await makeVendor();
 	const res = await app.inject({
 		method: 'POST',
 		url: '/api/sessions/create',
 		payload: { vendorId: vendor.id, amountUsd: Number.POSITIVE_INFINITY },
 	});
-	// JSON.stringify turns Infinity into null, so validation rejects it as non-number.
 	assert.equal(res.statusCode, 400);
 	await app.close();
 });
 
 test('bug #1: amountUsd validation accepts a positive number', async () => {
 	const app = await buildApp();
-	const vendor = makeVendor();
+	const vendor = await makeVendor();
 	const res = await app.inject({
 		method: 'POST',
 		url: '/api/sessions/create',
@@ -98,8 +97,7 @@ test('bug #2: /settle returns 404 when the session is missing', async () => {
 
 test('bug #2: /settle returns 404 (not 500) when the vendor is missing for the session', async () => {
 	const app = await buildApp();
-	// Build a session that points at a vendor id that was never registered.
-	const orphan = createSession({
+	const orphan = await createSession({
 		vendor: {
 			id: 'orphan-vendor-id',
 			name: 'orphan',
@@ -120,7 +118,7 @@ test('bug #2: /settle returns 404 (not 500) when the vendor is missing for the s
 });
 
 test('bug #3: settleSessionById does not mutate session state when the vendor is missing', async () => {
-	const orphan = createSession({
+	const orphan = await createSession({
 		vendor: {
 			id: 'orphan-vendor-id-2',
 			name: 'orphan',
@@ -132,20 +130,18 @@ test('bug #3: settleSessionById does not mutate session state when the vendor is
 		},
 		amount_usd: 1000,
 	});
-	const before = getSession(orphan.id)!.status;
+	const before = (await getSession(orphan.id))!.status;
 	await assert.rejects(() => settleSessionById(orphan.id), /Vendor not found/);
-	const after = getSession(orphan.id)!.status;
+	const after = (await getSession(orphan.id))!.status;
 	assert.equal(before, 'pending');
-	assert.equal(after, 'pending', 'status should not have rolled forward to solana_transiting');
+	assert.equal(after, 'pending');
 });
 
 test('bug #3: settleSessionById refuses to re-settle an already-finalized session', async () => {
-	const vendor = makeVendor();
-	const session = createSession({ vendor, amount_usd: 2500 });
-	// First settlement: should succeed.
+	const vendor = await makeVendor();
+	const session = await createSession({ vendor, amount_usd: 2500 });
 	const result = await settleSessionById(session.id);
 	assert.equal(result.session.status, 'efirc_generated');
-	// Second call: must throw, not roll status backwards.
 	await assert.rejects(() => settleSessionById(session.id), /already settled/);
-	assert.equal(getSession(session.id)!.status, 'efirc_generated');
+	assert.equal((await getSession(session.id))!.status, 'efirc_generated');
 });

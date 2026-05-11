@@ -37,13 +37,12 @@ interface PaymentSession {
 	created_at: string;
 }
 
-const FX_RATE = 83.5;
-
 export default function DashboardPage() {
+	const [fxRate, setFxRate] = useState(83.5);
 	const [vendors, setVendors] = useState<Vendor[]>([]);
 	const [selectedVendorId, setSelectedVendorId] = useState<string>('');
 	const [sessions, setSessions] = useState<PaymentSession[]>([]);
-	const [amountUsd, setAmountUsd] = useState('5000');
+	const [amountUsd, setAmountUsd] = useState('');
 	const [creating, setCreating] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -72,6 +71,13 @@ export default function DashboardPage() {
 	}, [selectedVendorId]);
 
 	useEffect(() => {
+		fetch('/api/fx-rate')
+			.then((r) => r.json())
+			.then((d: { rate?: number }) => { if (d.rate) setFxRate(d.rate); })
+			.catch(() => {});
+	}, []);
+
+	useEffect(() => {
 		refreshVendors();
 	}, [refreshVendors]);
 
@@ -88,7 +94,7 @@ export default function DashboardPage() {
 		const amount = Number(amountUsd || 0);
 		const swiftFee = amount * 0.04 + 47;
 		const cbFee = amount * 0.012 + 1;
-		const inrCredit = amount * FX_RATE;
+		const inrCredit = amount * fxRate;
 		return {
 			amount,
 			swift: swiftFee,
@@ -96,7 +102,7 @@ export default function DashboardPage() {
 			savings: Math.max(0, swiftFee - cbFee),
 			inr: inrCredit,
 		};
-	}, [amountUsd]);
+	}, [amountUsd, fxRate]);
 
 	const counts = useMemo(() => {
 		const totalUsd = sessions.reduce((acc, s) => acc + s.amount_usd, 0);
@@ -251,7 +257,7 @@ export default function DashboardPage() {
 								<MiniMetric
 									label="You save"
 									value={`$${fx.savings.toFixed(2)}`}
-									sub={`≈ ₹${(fx.savings * FX_RATE).toFixed(0)}`}
+									sub={`≈ ₹${(fx.savings * fxRate).toFixed(0)}`}
 									accent
 								/>
 							</div>
@@ -260,7 +266,7 @@ export default function DashboardPage() {
 								<span className="font-semibold text-ink">
 									₹{fx.inr.toLocaleString(undefined, { maximumFractionDigits: 0 })}
 								</span>{' '}
-								@ {FX_RATE} INR/USD
+								@ {fxRate} INR/USD
 							</p>
 						</div>
 
@@ -369,7 +375,7 @@ export default function DashboardPage() {
 								</table>
 							</div>
 
-							{activeSession && <SessionDetail session={activeSession} />}
+							{activeSession && <SessionDetail session={activeSession} fxRate={fxRate} />}
 						</div>
 					)}
 				</div>
@@ -380,8 +386,8 @@ export default function DashboardPage() {
 	);
 }
 
-function SessionDetail({ session }: { session: PaymentSession }) {
-	const inrAmount = (session.amount_usd * FX_RATE).toFixed(2);
+function SessionDetail({ session, fxRate }: { session: PaymentSession; fxRate: number }) {
+	const inrAmount = (session.amount_usd * fxRate).toFixed(2);
 	return (
 		<div className="utility-card">
 			<div className="flex items-center justify-between">

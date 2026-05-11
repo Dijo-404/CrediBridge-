@@ -22,11 +22,33 @@ jobs:
     name: typecheck + unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: credbridge_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -34,13 +56,21 @@ jobs:
       - name: Install workspace dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Type-check backend
+      - name: Run migrations
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/credbridge_test
+        run: npm run migrate
+
+      - name: Type-check
         working-directory: apps/backend
         run: npm run typecheck
 
-      - name: Run unit tests
+      - name: Unit tests
         working-directory: apps/backend
         env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/credbridge_test
+          REDIS_URL: redis://localhost:6379
           DODO_WEBHOOK_SECRET: whsec_ci_test
         run: npm test
 
@@ -49,36 +79,59 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: credbridge_e2e
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install workspace dependencies
+      - name: Install
         run: npm install --no-audit --no-fund
 
       - name: Start backend
         working-directory: apps/backend
         env:
           PORT: 3001
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/credbridge_e2e
+          REDIS_URL: redis://localhost:6379
           DODO_WEBHOOK_SECRET: whsec_ci_test
         run: |
+          npm run migrate
           nohup npx tsx src/index.ts > backend.log 2>&1 &
           echo $! > backend.pid
 
       - name: Wait for /health
         run: |
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:3001/health > /dev/null; then
-              echo "backend ready"; exit 0
-            fi
+            if curl -sf http://localhost:3001/health > /dev/null; then echo "ready"; exit 0; fi
             sleep 1
           done
-          echo "backend never came up"; cat apps/backend/backend.log; exit 1
+          cat apps/backend/backend.log; exit 1
 
       - name: Run simulate-payment.ts
         env:
@@ -88,10 +141,7 @@ jobs:
 
       - name: Stop backend
         if: always()
-        run: |
-          if [ -f apps/backend/backend.pid ]; then
-            kill "$(cat apps/backend/backend.pid)" || true
-          fi
+        run: kill "$(cat apps/backend/backend.pid)" || true
 
       - name: Upload backend log on failure
         if: failure()

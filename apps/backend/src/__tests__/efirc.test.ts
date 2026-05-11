@@ -1,11 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Fastify from 'fastify';
-
-import { registerSessionRoutes } from '../routes/sessions';
-import { registerVendorRoutes } from '../routes/vendors';
-import { createVendor, createSession } from '../db/store';
-import { settleSessionById } from '../services/settlement';
+import { registerSessionRoutes } from '../routes/sessions.js';
+import { registerVendorRoutes } from '../routes/vendors.js';
+import { createVendor, createSession } from '../db/store.js';
+import { settleSessionById } from '../services/settlement.js';
 
 async function buildApp() {
 	const app = Fastify();
@@ -17,7 +16,7 @@ async function buildApp() {
 
 test('GET /api/sessions/:id/efirc returns 409 before settlement', async () => {
 	const app = await buildApp();
-	const vendor = createVendor({
+	const vendor = await createVendor({
 		name: 'Efirc Co',
 		gst_number: '07ABCDE1234F1Z9',
 		pan_number: 'ABCDE1234F',
@@ -25,7 +24,7 @@ test('GET /api/sessions/:id/efirc returns 409 before settlement', async () => {
 		solana_wallet: 'walletX',
 		purpose_code: 'S1007',
 	});
-	const session = createSession({ vendor, amount_usd: 1000 });
+	const session = await createSession({ vendor, amount_usd: 1000 });
 	const res = await app.inject({ method: 'GET', url: `/api/sessions/${session.id}/efirc` });
 	assert.equal(res.statusCode, 409);
 	await app.close();
@@ -33,7 +32,7 @@ test('GET /api/sessions/:id/efirc returns 409 before settlement', async () => {
 
 test('GET /api/sessions/:id/efirc returns a PDF after settlement', async () => {
 	const app = await buildApp();
-	const vendor = createVendor({
+	const vendor = await createVendor({
 		name: 'Efirc Co 2',
 		gst_number: '07ABCDE1234F1Z8',
 		pan_number: 'ABCDE1234G',
@@ -41,7 +40,7 @@ test('GET /api/sessions/:id/efirc returns a PDF after settlement', async () => {
 		solana_wallet: 'walletY',
 		purpose_code: 'S1007',
 	});
-	const session = createSession({ vendor, amount_usd: 1500 });
+	const session = await createSession({ vendor, amount_usd: 1500 });
 	await settleSessionById(session.id);
 
 	const res = await app.inject({ method: 'GET', url: `/api/sessions/${session.id}/efirc` });
@@ -55,7 +54,7 @@ test('GET /api/sessions/:id/efirc returns a PDF after settlement', async () => {
 
 test('GET /api/sessions returns sessions filtered by vendor', async () => {
 	const app = await buildApp();
-	const vendor = createVendor({
+	const v1 = await createVendor({
 		name: 'List Co',
 		gst_number: '07LISTC1234F1Z9',
 		pan_number: 'LISTC1234F',
@@ -63,16 +62,22 @@ test('GET /api/sessions returns sessions filtered by vendor', async () => {
 		solana_wallet: 'walletZ',
 		purpose_code: 'S1102',
 	});
-	createSession({ vendor, amount_usd: 100 });
-	createSession({ vendor, amount_usd: 200 });
-
-	const res = await app.inject({
-		method: 'GET',
-		url: `/api/sessions?vendorId=${vendor.id}`,
+	const v2 = await createVendor({
+		name: 'Other Co',
+		gst_number: '07OTHER1234F1Z9',
+		pan_number: 'OTHER1234F',
+		ad_bank_account: '666',
+		solana_wallet: 'walletW',
+		purpose_code: 'S0802',
 	});
+	await createSession({ vendor: v1, amount_usd: 100 });
+	await createSession({ vendor: v1, amount_usd: 200 });
+	await createSession({ vendor: v2, amount_usd: 300 });
+
+	const res = await app.inject({ method: 'GET', url: `/api/sessions?vendorId=${v1.id}` });
 	assert.equal(res.statusCode, 200);
 	const json = res.json() as { sessions: Array<{ vendor_id: string }> };
 	assert.ok(json.sessions.length >= 2);
-	assert.ok(json.sessions.every((s) => s.vendor_id === vendor.id));
+	assert.ok(json.sessions.every((s) => s.vendor_id === v1.id));
 	await app.close();
 });

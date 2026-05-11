@@ -1,43 +1,67 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { InMemoryQueue } from '../queues/payment';
+import { Queue, Worker, Job } from 'bullmq';
+import IORedis from 'ioredis';
 
-test('queue runs handler and reports completion', async () => {
-	const q = new InMemoryQueue<{ value: number }>('t1', { maxAttempts: 1, baseDelayMs: 1 });
-	let received = 0;
-	q.process(async (job) => {
-		received = job.payload.value;
+const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
+const TEST_QUEUE = `credbridge-test-${Date.now()}`;
+
+test('queue processes a job and calls the handler', async () => {
+	const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
+	const queue = new Queue(TEST_QUEUE, { connection });
+	let received: unknown = null;
+
+	const worker = new Worker(
+		TEST_QUEUE,
+		async (job: Job) => { received = job.data; },
+		{ connection }
+	);
+
+	const done = new Promise<void>((resolve) => {
+		worker.on('completed', () => resolve());
 	});
-	const completed = new Promise<void>((resolve) => q.once('completed', () => resolve()));
-	await q.add('compute', { value: 42 });
-	await completed;
-	assert.equal(received, 42);
+
+	await queue.add('test', { value: 42 });
+	await done;
+
+	assert.deepEqual(received, { value: 42 });
+
+	await worker.close();
+	await queue.obliterate({ force: true });
+	await queue.close();
+	await connection.quit();
 });
 
-test('queue retries failing handler with backoff up to maxAttempts', async () => {
-	const q = new InMemoryQueue<{}>('t2', { maxAttempts: 3, baseDelayMs: 1 });
-	let attempts = 0;
-	q.process(async () => {
-		attempts++;
-		throw new Error('boom');
+test('queue retries a failing job up to maxAttempts then marks failed', async () => {
+	const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
+	const queue = new Queue(`${TEST_QUEUE}-retry`, {
+		connection,
+		defaultJobOptions: {
+			attempts: 3,
+			backoff: { type: 'fixed', delay: 10 },
+		},
 	});
-	const dlq = new Promise<void>((resolve) => q.once('dead-letter', () => resolve()));
-	await q.add('flaky', {});
-	await dlq;
-	assert.equal(attempts, 3);
-	assert.equal(q.getDeadLetter().length, 1);
-});
+	let attempts = 0;
 
-test('queue handler succeeding on retry stops the loop', async () => {
-	const q = new InMemoryQueue<{}>('t3', { maxAttempts: 5, baseDelayMs: 1 });
-	let attempts = 0;
-	q.process(async () => {
-		attempts++;
-		if (attempts < 3) throw new Error('flake');
+	const worker = new Worker(
+		`${TEST_QUEUE}-retry`,
+		async () => { attempts++; throw new Error('always fails'); },
+		{ connection }
+	);
+
+	const done = new Promise<void>((resolve) => {
+		worker.on('failed', (_job, _err, prev) => {
+			if (prev === 'active') resolve();
+		});
 	});
-	const completed = new Promise<void>((resolve) => q.once('completed', () => resolve()));
-	await q.add('retry', {});
-	await completed;
+
+	await queue.add('flaky', {});
+	await done;
+
 	assert.equal(attempts, 3);
-	assert.equal(q.getDeadLetter().length, 0);
+
+	await worker.close();
+	await queue.obliterate({ force: true });
+	await queue.close();
+	await connection.quit();
 });
