@@ -10,20 +10,15 @@ Solana Frontier Hackathon · Superteam India track · Dodo Payments prize.
 
 ## Architecture
 
-```
-Foreign client → Dodo Payments checkout
-                       │ payment.succeeded (HMAC-signed webhook)
-                       ▼
-              CrediBridge backend (Fastify)
-                       │
-              BullMQ + Redis queue
-                       │
-         ┌─────────────┼─────────────┐
-         ▼             ▼             ▼
-  Solana escrow   Razorpay PayOut  e-FIRC PDF
-  (Token-2022)    (INR credit)     (compliance doc)
-         │
-  Postgres (vendors, sessions, webhook dedup)
+```mermaid
+flowchart TD
+    Client["Foreign client"] --> Dodo["Dodo Payments checkout"]
+    Dodo -- "payment.succeeded<br>(HMAC-signed webhook)" --> Backend["CrediBridge backend (Fastify)"]
+    Backend --> Queue["BullMQ + Redis queue"]
+    Queue --> Solana["Solana escrow<br>(Token-2022)"]
+    Queue --> Razorpay["Razorpay PayOut<br>(INR credit)"]
+    Queue --> PDF["e-FIRC PDF<br>(compliance doc)"]
+    Solana --> Postgres["Postgres<br>(vendors, sessions, webhook dedup)"]
 ```
 
 ---
